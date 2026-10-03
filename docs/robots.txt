@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /email-preview
+Disallow: /preview/
+Disallow: /app/
+
+Sitemap: https://directhomes.ae/sitemap.xml

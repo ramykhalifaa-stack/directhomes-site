@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://directhomes.ae/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://directhomes.ae/renters</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://directhomes.ae/buyers</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://directhomes.ae/sellers</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://directhomes.ae/how-it-works</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://directhomes.ae/partners</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://directhomes.ae/investors</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://directhomes.ae/our-story</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://directhomes.ae/verified-advisor-program</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://directhomes.ae/waiting-list-v2</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://directhomes.ae/privacy-policy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://directhomes.ae/terms-of-service</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+</urlset>
