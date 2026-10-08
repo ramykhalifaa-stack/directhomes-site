@@ -14,12 +14,13 @@ Design and open questions: [`docs/SPEC.md`](docs/SPEC.md).
 
 | Part | State |
 |---|---|
-| API server (`server/`) | Built; 14 automated tests pass against mock integrations |
+| API server (`server/`) | Built; 19 automated tests pass against mock integrations. Optional durable SQLite storage (`DATABASE_FILE`), official-form overlay (`OFFICIAL_TEMPLATE_PDF`, `OFFICIAL_TEMPLATE_MAP`) |
 | Document extraction | Mock (JSON fixtures) tested; Claude vision adapter written, tested with a stubbed network only |
 | UAE PASS, Trustin, Ejari, title deed, clearance | Interfaces and mocks only. **No live adapters.** Real API access and schemas are unverified |
 | Contract PDF | Field-complete draft layout, clearly marked as NOT the official form |
 | Mobile app (`mobile/`) | Source written and typechecks; **never run on a device or simulator**, no store build |
-| App Store / Google Play | Not started. Needs Apple Developer and Google Play accounts, privacy policy, review |
+| App Store / Google Play | Build config (`mobile/eas.json`) and a step-by-step guide in [`docs/RELEASE.md`](docs/RELEASE.md). Not executed: needs your Apple and Google organisation accounts |
+| Docker image (`server/Dockerfile`) | Written, not built in this environment |
 
 ## Run the server
 
@@ -36,6 +37,8 @@ Environment variables:
 |---|---|---|
 | `PILOT_API_TOKEN` | required | Bearer token for the pilot API |
 | `EXTRACTOR` | `mock` (default), `claude` | `claude` needs `ANTHROPIC_API_KEY`; sends documents to a third party |
+| `DATABASE_FILE` | path, optional | Persist data in SQLite; without it data is lost on restart |
+| `OFFICIAL_TEMPLATE_PDF`, `OFFICIAL_TEMPLATE_MAP` | paths, optional | Stamp data onto the official form using a JSON field map |
 | `IDENTITY_MODE`, `TITLE_DEED_MODE`, `CLEARANCE_MODE`, `ESCROW_MODE`, `EJARI_MODE` | `mock` (default), `live` | `live` fails at startup until a live adapter exists |
 
 Mock triggers for demos: title deed number starting `BAD` fails verification; property number
@@ -66,8 +69,8 @@ Against the mock extractor, scans will fail by design (it only reads JSON fixtur
 
 - [ ] Private repository; secret scanning on
 - [ ] Legal sign-off: official unified contract form, e-signature validity, Direct Homes' authority to register with Ejari
-- [ ] Official form overlay replaces the draft layout in `server/src/contract/pdf.ts`
-- [ ] Postgres repository and encrypted document storage in a UAE region
+- [ ] Official form PDF and its field map supplied (see `server/src/contract/overlay.ts`), then verify every field position on a real printout
+- [ ] Encrypted document storage in a UAE region (documents are not stored yet, only their hashes); Postgres if more than one instance is needed
 - [ ] Per-user authentication (UAE PASS login) replacing the shared pilot token
 - [ ] Data protection review for the extraction provider and document retention
 - [ ] Live adapters for each provider, tested in their sandboxes

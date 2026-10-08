@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { renderContractPdf } from "./contract/pdf.js";
+import { renderOnTemplate, type OverlayMap } from "./contract/overlay.js";
 import { DocKindSchema, PartyRole, PartySchema, PropertySchema, TermsSchema } from "./domain/schema.js";
 import { WorkflowError } from "./domain/workflow.js";
 import type { DocumentExtractor } from "./extraction/index.js";
@@ -16,6 +17,8 @@ export interface AppDeps {
   integrations: Integrations;
   /** Bearer token for the pilot. Replace with per-user auth (UAE PASS login) before wider rollout. */
   apiToken: string;
+  /** Official form + field map. When set, PDFs are stamped onto it instead of the draft layout. */
+  officialTemplate?: { pdf: Uint8Array; map: OverlayMap };
 }
 
 const PatchBody = z.object({
@@ -76,6 +79,8 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   });
 
   const actor = "pilot-operator";
+  const render = (c: Awaited<ReturnType<ContractService["get"]>>) =>
+    deps.officialTemplate ? renderOnTemplate(c, deps.officialTemplate.pdf, deps.officialTemplate.map) : renderContractPdf(c);
   type Params = { Params: { id: string } };
 
   app.get("/health", async () => ({ ok: true }));
@@ -112,7 +117,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
 
   app.get<Params>("/contracts/:id/audit", async (req) => svc.auditTrail(req.params.id));
   app.get<Params>("/contracts/:id/pdf", async (req, reply) => {
-    const pdf = await renderContractPdf(await svc.get(req.params.id));
+    const pdf = await render(await svc.get(req.params.id));
     return reply.header("content-type", "application/pdf").send(Buffer.from(pdf));
   });
 
@@ -128,7 +133,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     const expected = signLink(req.params.id, exp, deps.apiToken);
     const valid = Number.isFinite(exp) && exp > Date.now() && sig.length === expected.length && timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
     if (!valid) return reply.code(401).send({ error: "invalid or expired link" });
-    const pdf = await renderContractPdf(await svc.get(req.params.id));
+    const pdf = await render(await svc.get(req.params.id));
     return reply.header("content-type", "application/pdf").send(Buffer.from(pdf));
   });
 

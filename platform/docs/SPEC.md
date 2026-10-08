@@ -18,13 +18,13 @@ Let Direct Homes execute real pilot tenancy contracts between a landlord and a t
 
 | Item | Decision | Status |
 |---|---|---|
-| Emirate | Dubai only (Ejari, RERA unified contract) | Assumption, confirm |
+| Emirate | Dubai only (Ejari, RERA unified contract) | Confirmed by Direct Homes |
 | Platforms | iOS and Android from one Expo/React Native codebase | Recommendation |
-| Backend | TypeScript, Fastify, Zod validation, Postgres later | Recommendation |
+| Backend | TypeScript, Fastify, Zod validation; SQLite on one node for the pilot, Postgres later | Recommendation |
 | Integrations | Interfaces plus mock adapters now; live adapters after partner onboarding | Required, APIs unverified |
-| Official form | Generated draft layout now; overlay on the official form after legal sign-off | Required |
+| Official form | Generated draft layout now; `contract/overlay.ts` stamps data onto the official PDF using a field map (config, not code) once legal supplies the form | Required |
 
-Out of scope for Phase 1: other emirates (for example Abu Dhabi Tawtheeq), power of attorney flows, rent renewals, payments processing beyond escrow, commercial leases.
+Out of scope for Phase 1 and by decision: other emirates (for example Abu Dhabi Tawtheeq), power of attorney flows, rent renewals, payments processing beyond escrow, commercial leases.
 
 ## 3. What is verified and what is not
 
