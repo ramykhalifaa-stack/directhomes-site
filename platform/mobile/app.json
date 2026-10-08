@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Direct Homes",
+    "slug": "directhomes-platform",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "ios": { "bundleIdentifier": "ae.directhomes.platform", "infoPlist": { "NSCameraUsageDescription": "Scan the title deed, Emirates ID and trade license.", "NSPhotoLibraryUsageDescription": "Choose a photo of a document to upload." } },
+    "android": { "package": "ae.directhomes.platform", "permissions": ["CAMERA"] },
+    "plugins": ["expo-secure-store"]
+  }
+}
