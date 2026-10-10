@@ -86,7 +86,7 @@ Documents contain Emirates ID numbers and property data, which are personal data
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Provider APIs unavailable to Direct Homes | Core steps become manual | Adapter design lets each step fall back to a manual upload and staff attestation |
+| Provider APIs unavailable to Direct Homes | Research (see INTEGRATION_FINDINGS.md) found no public API for title deed verification or clearance, and the Ejari API has strict prerequisites. Those steps are manual | Add an assisted mode where staff perform the official check or registration and record the result with evidence; keep adapters for providers that do offer APIs |
 | OCR error on a legal field | Wrong contract | Confidence scores, mandatory human confirmation, cross-checks (owner vs landlord) |
 | Template drift | Invalid form | Pin form version, legal review on change |
 | Code in a public repo | Data or key leak | Move to a private repo before live keys; secret scanning |
