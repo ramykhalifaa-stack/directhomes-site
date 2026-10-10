@@ -55,10 +55,19 @@ export function getPath(c: Contract, path: string): unknown {
   return (c as unknown as Record<string, Record<string, unknown>>)[section]?.[field];
 }
 
+/**
+ * Order-insensitive comparison key for person and company names, for Latin and Arabic text.
+ * Arabic diacritics and tatweel are dropped and common alef/ya spelling variants are unified,
+ * so the same name written two ways matches, while different names never collapse to the same key.
+ */
 export function normalizeName(s: string | undefined): string {
   return (s ?? "")
+    .normalize("NFKC")
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, "")
+    .replace(/[\u0623\u0625\u0622\u0671]/g, "\u0627")
+    .replace(/\u0649/g, "\u064A")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .split(/\s+/)
     .filter(Boolean)
     .sort()

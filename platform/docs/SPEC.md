@@ -36,7 +36,7 @@ Not verified (do not assume):
 - That the supplied form is the current official version. The field list was taken from the form Direct Homes supplied (Dubai Land Department / Ejari unified tenancy contract, 3 pages, SHA-256 `33802759...3925`); legal must confirm it is current.
 - Legal validity of an electronic signature flow, Ejari registration eligibility for a non-broker, and any licensing Direct Homes needs to operate. Legal counsel must confirm.
 - The mobile app: source is written but has not been built or run in this environment.
-- Printing: checked on screen at 100 to 130 dpi, not on paper. Arabic text is not supported and the "Additional Terms" lines on page 3 are left blank.
+- Printing: checked on screen at 100 to 140 dpi, not on paper, and not by a native Arabic reader. Arabic is drawn as vector outlines from the bundled Noto Sans Arabic font (SIL OFL, `templates/fonts/OFL.txt`), so it is not searchable in the PDF. Bidirectional ordering is done at word level, which is right for names, addresses and company names but is not a full Unicode bidi implementation. The "Additional Terms" lines on page 3 are left blank.
 
 ## 4. Architecture
 

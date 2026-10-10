@@ -2,6 +2,7 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { z } from "zod";
 import type { Contract, PartyRole } from "../domain/schema.js";
 import { getPath } from "../domain/workflow.js";
+import { arabicWordParts, arabicWordWidth, drawArabicWord, hasArabic } from "./arabic.js";
 
 /**
  * Stamps contract data onto the OFFICIAL Dubai tenancy form without redrawing it.
@@ -102,13 +103,64 @@ export async function renderOnTemplate(c: Contract, template: Uint8Array, mapIn:
   for (const t of texts) {
     const page = pages[t.page];
     if (!page) throw new OverlayError(`Form map points at page ${t.page + 1}, which does not exist (field ${t.path})`);
-    const width = (s: number) => {
+    const unprintable = (why: string) => new OverlayError(`'${t.path}' ${why}; only Latin and Arabic text are supported`);
+    const latinWidth = (txt: string, s: number) => {
       try {
-        return font.widthOfTextAtSize(t.text, s);
+        return font.widthOfTextAtSize(txt, s);
       } catch {
-        throw new OverlayError(`'${t.path}' contains characters the form printer cannot draw; only Latin text is supported for now`);
+        throw unprintable("contains characters the form printer cannot draw");
       }
     };
+
+    if (hasArabic(t.text)) {
+      // Mixed-direction line, ordered at word level like Unicode bidi: the first word's script sets the line
+      // direction; consecutive Arabic words form a right-to-left run, other words a left-to-right run.
+      const logical = t.text.split(/\s+/).filter(Boolean);
+      const baseRtl = hasArabic(logical[0]!);
+      if (baseRtl && !t.maxWidth) throw new OverlayError(`'${t.path}' has right-to-left text but its form-map entry has no maxWidth to align against`);
+      const runs: { ar: boolean; words: string[] }[] = [];
+      for (const w of logical) {
+        const ar = hasArabic(w);
+        if (runs.at(-1)?.ar === ar) runs.at(-1)!.words.push(w);
+        else runs.push({ ar, words: [w] });
+      }
+      const visual = (baseRtl ? [...runs].reverse() : runs).flatMap((r) => (r.ar ? [...r.words].reverse() : r.words));
+      const partsOf = (w: string) => {
+        if (!hasArabic(w)) return [{ text: w, ar: false }];
+        try {
+          return arabicWordParts(w);
+        } catch (e) {
+          throw unprintable(`has a word that cannot be printed (${e instanceof Error ? e.message : "unknown"})`);
+        }
+      };
+      const partWidth = (p: { text: string; ar: boolean }, s: number) => {
+        if (!p.ar) return latinWidth(p.text, s);
+        try {
+          return arabicWordWidth(p.text, s);
+        } catch (e) {
+          throw unprintable(`has a word that cannot be printed (${e instanceof Error ? e.message : "unknown"})`);
+        }
+      };
+      const wordWidth = (w: string, s: number) => partsOf(w).reduce((sum, p) => sum + partWidth(p, s), 0);
+      const total = (s: number) => visual.reduce((sum, w) => sum + wordWidth(w, s), 0) + latinWidth(" ", s) * (visual.length - 1);
+      let size = t.size;
+      if (t.maxWidth) {
+        while (total(size) > t.maxWidth && size > MIN_SIZE) size -= 0.5;
+        if (total(size) > t.maxWidth) throw new OverlayError(`'${t.path}' is too long to fit its box on the official form`);
+      }
+      let x = baseRtl ? t.x + t.maxWidth! - total(size) : t.x; // right edge for RTL lines, left edge otherwise
+      for (const w of visual) {
+        for (const p of partsOf(w)) {
+          if (p.ar) drawArabicWord(page, p.text, x, t.y, size);
+          else page.drawText(p.text, { x, y: t.y, size, font, color: rgb(0, 0, 0) });
+          x += partWidth(p, size);
+        }
+        x += latinWidth(" ", size);
+      }
+      continue;
+    }
+
+    const width = (s: number) => latinWidth(t.text, s);
     let size = t.size;
     if (t.maxWidth) {
       while (width(size) > t.maxWidth && size > MIN_SIZE) size -= 0.5;

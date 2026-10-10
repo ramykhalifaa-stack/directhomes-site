@@ -82,7 +82,7 @@ describe("bundled official form", () => {
   it("refuses to truncate: too-long and non-Latin values fail with a clear error", async () => {
     await expect(renderOnTemplate(base({ landlord: { name: "X".repeat(400) } }), tpl.pdf, tpl.map)).rejects.toThrow(OverlayError);
     await expect(renderOnTemplate(base({ landlord: { name: "X".repeat(400) } }), tpl.pdf, tpl.map)).rejects.toThrow(/landlord\.name.*too long/);
-    await expect(renderOnTemplate(base({ tenant: { name: "محمد" } }), tpl.pdf, tpl.map)).rejects.toThrow(/tenant\.name.*Latin/);
+    await expect(renderOnTemplate(base({ tenant: { name: "王小明" } }), tpl.pdf, tpl.map)).rejects.toThrow(/tenant\.name.*Latin and Arabic/);
   });
 
   it("shrinks long-but-fitting text instead of failing", async () => {

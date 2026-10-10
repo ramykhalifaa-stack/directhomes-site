@@ -14,7 +14,7 @@ Design and open questions: [`docs/SPEC.md`](docs/SPEC.md).
 
 | Part | State |
 |---|---|
-| API server (`server/`) | Built; 42 automated tests pass against mock integrations. Optional durable SQLite storage (`DATABASE_FILE`), AES-256-GCM encrypted original-document storage (`DOCUMENT_DIR`), per-user login with a staff allow-list, recorded data-processing consent, rate limiting, official-form stamping |
+| API server (`server/`) | Built; 50 automated tests pass against mock integrations. Optional durable SQLite storage (`DATABASE_FILE`), AES-256-GCM encrypted original-document storage (`DOCUMENT_DIR`), per-user login with a staff allow-list, recorded data-processing consent, rate limiting, official-form stamping |
 | Document extraction | Mock (JSON fixtures) tested; Claude vision adapter written, tested with a stubbed network only |
 | UAE PASS, Trustin, Ejari, title deed, clearance | Interfaces and mocks only. **No live adapters.** Real API access and schemas are unverified |
 | Contract PDF | **Stamped onto the official Dubai Land Department / Ejari unified tenancy contract** (3-page form you supplied, bundled unmodified in `server/templates/`), with e-signature evidence in the signature boxes. Latin text only; Arabic values, the page 3 "Additional Terms" lines and legal sign-off on the form version are still open. `TEMPLATE_MODE=draft` gives the old draft layout |
@@ -73,7 +73,7 @@ Against the mock extractor, scans will fail by design (it only reads JSON fixtur
 - [ ] Private repository; secret scanning on
 - [ ] Legal sign-off: official unified contract form, e-signature validity, Direct Homes' authority to register with Ejari
 - [x] Official form and its coordinate map supplied and checked visually on all 3 pages (`server/templates/`). Still to do: legal confirms this is the current form, and a printout test on paper
-- [ ] Arabic names (the form is bilingual; today only Latin text can be printed, and Arabic input is rejected with a clear error rather than printed wrongly)
+- [x] Arabic names and Arabic/Latin mixed values print correctly (checked visually); other scripts are rejected with a clear error. Remaining: a native Arabic reader should review a printed sample
 - [ ] Move document storage to a UAE-region object store with managed keys (the pilot encrypts on local disk); Postgres and a shared rate-limit store if more than one instance is needed
 - [ ] Legal-approved data-processing notice text (the app records a notice version string; the text itself is not written)
 - [ ] Live UAE PASS login adapter (the session, allow-list and audit-by-person plumbing already exists); then retire the shared `PILOT_API_TOKEN` or lock it away
