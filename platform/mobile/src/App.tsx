@@ -9,8 +9,8 @@ import { Api, type Contract, type DocKind, type Readiness, type Role } from "./a
 const FIELD_GROUPS: { title: string; section: "landlord" | "tenant" | "property" | "terms"; fields: string[] }[] = [
   { title: "Landlord", section: "landlord", fields: ["name", "emiratesId", "email", "phone"] },
   { title: "Tenant", section: "tenant", fields: ["name", "emiratesId", "email", "phone"] },
-  { title: "Property", section: "property", fields: ["titleDeedNumber", "ownerName", "plotNumber", "makaniNumber", "buildingName", "propertyNumber", "propertyType", "areaSqm", "usage", "premisesNo"] },
-  { title: "Terms", section: "terms", fields: ["startDate", "endDate", "annualRent", "securityDeposit", "paymentCheques"] },
+  { title: "Property", section: "property", fields: ["titleDeedNumber", "ownerName", "plotNumber", "makaniNumber", "buildingName", "propertyNumber", "propertyType", "areaSqm", "location", "usage", "premisesNo"] },
+  { title: "Terms", section: "terms", fields: ["startDate", "endDate", "annualRent", "contractValue", "securityDeposit", "paymentCheques"] },
 ];
 
 export default function App() {

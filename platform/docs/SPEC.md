@@ -22,7 +22,7 @@ Let Direct Homes execute real pilot tenancy contracts between a landlord and a t
 | Platforms | iOS and Android from one Expo/React Native codebase | Recommendation |
 | Backend | TypeScript, Fastify, Zod validation; SQLite on one node for the pilot, Postgres later | Recommendation |
 | Integrations | Interfaces plus mock adapters now; live adapters after partner onboarding | Required, APIs unverified |
-| Official form | Generated draft layout now; `contract/overlay.ts` stamps data onto the official PDF using a field map (config, not code) once legal supplies the form | Required |
+| Official form | The supplied official PDF is stamped unmodified (`templates/`), using a coordinate map that is configuration, not code; values that do not fit or are not Latin text fail loudly instead of being truncated | Done; legal to confirm version |
 
 Out of scope for Phase 1 and by decision: other emirates (for example Abu Dhabi Tawtheeq), power of attorney flows, rent renewals, payments processing beyond escrow, commercial leases.
 
@@ -33,9 +33,10 @@ Verified in this repo: the code in `platform/server` and its automated tests, ru
 Not verified (do not assume):
 
 - That Trustin, DLD/Ejari, title deed verification or clearance checks expose APIs available to Direct Homes. These normally need partner or licensed-broker onboarding. The request and response shapes in `integrations/types.ts` are our own design, not the providers' real schemas. They must be mapped when real API documentation is received.
-- The exact field list and wording of the current official Dubai tenancy contract. `contract/fields.ts` reflects our understanding and must be checked against the current official form.
+- That the supplied form is the current official version. The field list was taken from the form Direct Homes supplied (Dubai Land Department / Ejari unified tenancy contract, 3 pages, SHA-256 `33802759...3925`); legal must confirm it is current.
 - Legal validity of an electronic signature flow, Ejari registration eligibility for a non-broker, and any licensing Direct Homes needs to operate. Legal counsel must confirm.
 - The mobile app: source is written but has not been built or run in this environment.
+- Printing: checked on screen at 100 to 130 dpi, not on paper. Arabic text is not supported and the "Additional Terms" lines on page 3 are left blank.
 
 ## 4. Architecture
 

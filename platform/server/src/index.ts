@@ -1,8 +1,7 @@
 import { buildApp } from "./app.js";
 import { createExtractor } from "./extraction/index.js";
 import { createIntegrations } from "./integrations/registry.js";
-import { readFileSync } from "node:fs";
-import { OverlayMapSchema } from "./contract/overlay.js";
+import { loadOfficialTemplate } from "./contract/officialTemplate.js";
 import { createAuthProvider } from "./auth.js";
 import { EncryptedFileDocumentStore, MemoryDocumentStore } from "./store/documents.js";
 import { MemoryRepo } from "./store/repo.js";
@@ -14,14 +13,9 @@ if (!apiToken) {
   process.exit(1);
 }
 
-// OFFICIAL_TEMPLATE_PDF + OFFICIAL_TEMPLATE_MAP (JSON) switch PDFs from the draft layout to the official form.
-const officialTemplate =
-  process.env.OFFICIAL_TEMPLATE_PDF && process.env.OFFICIAL_TEMPLATE_MAP
-    ? {
-        pdf: readFileSync(process.env.OFFICIAL_TEMPLATE_PDF),
-        map: OverlayMapSchema.parse(JSON.parse(readFileSync(process.env.OFFICIAL_TEMPLATE_MAP, "utf8"))),
-      }
-    : undefined;
+// Official Dubai form is stamped by default (TEMPLATE_MODE=draft for the generated layout; see officialTemplate.ts).
+const officialTemplate = loadOfficialTemplate();
+console.log(officialTemplate ? `PDF template: official form sha256 ${officialTemplate.sha256}` : "PDF template: DRAFT layout (not the official form)");
 
 // Original documents hold personal data: with DOCUMENT_DIR they are encrypted on disk (DOCUMENT_KEY = 64 hex chars).
 if (process.env.DOCUMENT_DIR && !process.env.DOCUMENT_KEY) {

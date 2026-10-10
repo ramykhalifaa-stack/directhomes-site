@@ -55,6 +55,7 @@ export const FIELD_LAYOUT: { title: string; rows: [label: string, path: string][
       ["Start date", "terms.startDate"],
       ["End date", "terms.endDate"],
       ["Annual rent (AED)", "terms.annualRent"],
+      ["Contract value (AED)", "terms.contractValue"],
       ["Security deposit (AED)", "terms.securityDeposit"],
       ["Number of cheques", "terms.paymentCheques"],
     ],

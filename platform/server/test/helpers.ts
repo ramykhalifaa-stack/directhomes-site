@@ -56,7 +56,7 @@ export async function readyContract(app: App, termsOverride: Record<string, unkn
     landlord: { email: "landlord@example.test", phone: "+971500000001" },
     tenant: { email: "tenant@example.test", phone: "+971500000002" },
     property: { usage: "Residential", premisesNo: "123456789" },
-    terms: { startDate: "2030-03-01", endDate: "2031-02-28", annualRent: "100000", securityDeposit: "5000", paymentCheques: "4", ...termsOverride },
+    terms: { startDate: "2030-03-01", endDate: "2031-02-28", annualRent: "100000", contractValue: "100000", securityDeposit: "5000", paymentCheques: "4", ...termsOverride },
   });
   await call(app, "POST", `/contracts/${id}/confirm`, { fields: "all" });
   return id;

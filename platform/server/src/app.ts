@@ -2,7 +2,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { z } from "zod";
 import { renderContractPdf } from "./contract/pdf.js";
-import { renderOnTemplate, type OverlayMap } from "./contract/overlay.js";
+import { OverlayError, renderOnTemplate } from "./contract/overlay.js";
+import type { OfficialTemplate } from "./contract/officialTemplate.js";
 import { DocKindSchema, PartyRole, PartySchema, PropertySchema, TermsSchema } from "./domain/schema.js";
 import { WorkflowError } from "./domain/workflow.js";
 import type { DocumentExtractor } from "./extraction/index.js";
@@ -27,7 +28,7 @@ export interface AppDeps {
   /** Requests per minute per client: general and for login routes. */
   rateLimit?: { general: number; login: number };
   /** Official form + field map. When set, PDFs are stamped onto it instead of the draft layout. */
-  officialTemplate?: { pdf: Uint8Array; map: OverlayMap };
+  officialTemplate?: OfficialTemplate;
 }
 
 const PatchBody = z.object({
@@ -95,6 +96,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.setErrorHandler((err: unknown, _req, reply) => {
     if (err instanceof WorkflowError) return reply.code(err.statusCode).send({ error: err.message, details: err.details });
     if (err instanceof z.ZodError) return reply.code(400).send({ error: "invalid request", details: err.issues });
+    if (err instanceof OverlayError) return reply.code(422).send({ error: err.message });
     if (err instanceof NotConfiguredError) return reply.code(501).send({ error: err.message });
     // Framework errors (malformed JSON, payload too large, unknown route) carry their own 4xx status.
     const status = (err as { statusCode?: number }).statusCode;
@@ -136,6 +138,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     return { sessionToken: sessions.create(user), user: { userId: user.userId, name: user.name } };
   });
   app.get("/integrations", async () => integrationModes(deps.integrations));
+  app.get("/template", async () => ({ mode: deps.officialTemplate ? "official" : "draft", sha256: deps.officialTemplate?.sha256 ?? null }));
 
   app.post("/contracts", async (_req, reply) => reply.code(201).send(await svc.create(actorOf(_req))));
   app.get<Params>("/contracts/:id", async (req) => svc.get(req.params.id));

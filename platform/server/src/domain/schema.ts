@@ -43,6 +43,7 @@ export const TermsSchema = z
     startDate: z.string(),
     endDate: z.string(),
     annualRent: z.string(),
+    contractValue: z.string(),
     securityDeposit: z.string(),
     paymentCheques: z.string(),
     useEscrow: z.boolean(),

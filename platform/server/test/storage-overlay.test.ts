@@ -47,11 +47,11 @@ describe("official template overlay", () => {
     const doc = await PDFDocument.load(out);
     expect(doc.getPageCount()).toBe(1);
     const map = { fields: { "landlord.name": { page: 0, x: 50, y: 700, size: 10 }, "tenant.name": { page: 0, x: 50, y: 680, size: 10 } } };
-    expect(stampPlan(contract, map).map((f) => [f.path, f.text])).toEqual([["landlord.name", "Test Landlord"]]); // empty tenant skipped
+    expect(stampPlan(contract, map).texts.map((f) => [f.path, f.text])).toEqual([["landlord.name", "Test Landlord"]]); // empty tenant skipped
   });
 
   it("fails clearly when the map points at a missing page", async () => {
-    await expect(renderOnTemplate(contract, await blank(), { fields: { "landlord.name": { page: 3, x: 1, y: 1, size: 10 } } })).rejects.toThrow(/page 3/);
+    await expect(renderOnTemplate(contract, await blank(), { fields: { "landlord.name": { page: 3, x: 1, y: 1, size: 10 } } })).rejects.toThrow(/page 4/);
   });
 
   it("is used by the API when configured", async () => {
@@ -60,7 +60,7 @@ describe("official template overlay", () => {
       extractor: new MockExtractor(),
       integrations: createIntegrations({} as NodeJS.ProcessEnv),
       apiToken: TOKEN,
-      officialTemplate: { pdf: await blank(), map: { fields: {} } },
+      officialTemplate: { pdf: await blank(), map: { fields: {} }, sha256: "x" },
     });
     const { body: c } = await call(app, "POST", "/contracts");
     const pdf = await call(app, "GET", `/contracts/${c.id}/pdf`);

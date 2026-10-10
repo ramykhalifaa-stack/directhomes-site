@@ -1,0 +1,326 @@
+{
+ "_comment": "Coordinates are PDF points, origin bottom-left, A4 596x842. Generated from the label positions of the official Dubai Land Department / Ejari unified tenancy contract (3 pages). Re-derive if the form is revised.",
+ "fields": {
+  "derived.date": {
+   "page": 0,
+   "x": 48,
+   "y": 725,
+   "size": 9,
+   "maxWidth": 75,
+   "format": "date"
+  },
+  "property.ownerName": {
+   "page": 0,
+   "x": 95,
+   "y": 663,
+   "size": 9.5,
+   "maxWidth": 420
+  },
+  "landlord.name": {
+   "page": 0,
+   "x": 95,
+   "y": 641,
+   "size": 9.5,
+   "maxWidth": 420
+  },
+  "landlord.emiratesId": {
+   "page": 0,
+   "x": 112,
+   "y": 618,
+   "size": 9.5,
+   "maxWidth": 400
+  },
+  "landlord.tradeLicenseNo": {
+   "page": 0,
+   "x": 82,
+   "y": 596,
+   "size": 9.5,
+   "maxWidth": 170
+  },
+  "landlord.licensingAuthority": {
+   "page": 0,
+   "x": 382,
+   "y": 596,
+   "size": 9.5,
+   "maxWidth": 130
+  },
+  "landlord.email": {
+   "page": 0,
+   "x": 95,
+   "y": 571,
+   "size": 9.5,
+   "maxWidth": 420
+  },
+  "landlord.phone": {
+   "page": 0,
+   "x": 95,
+   "y": 549,
+   "size": 9.5,
+   "maxWidth": 420
+  },
+  "tenant.name": {
+   "page": 0,
+   "x": 95,
+   "y": 493,
+   "size": 9.5,
+   "maxWidth": 420
+  },
+  "tenant.emiratesId": {
+   "page": 0,
+   "x": 112,
+   "y": 471,
+   "size": 9.5,
+   "maxWidth": 400
+  },
+  "tenant.tradeLicenseNo": {
+   "page": 0,
+   "x": 82,
+   "y": 448,
+   "size": 9.5,
+   "maxWidth": 170
+  },
+  "tenant.licensingAuthority": {
+   "page": 0,
+   "x": 382,
+   "y": 448,
+   "size": 9.5,
+   "maxWidth": 130
+  },
+  "tenant.email": {
+   "page": 0,
+   "x": 95,
+   "y": 423,
+   "size": 9.5,
+   "maxWidth": 420
+  },
+  "tenant.phone": {
+   "page": 0,
+   "x": 95,
+   "y": 401,
+   "size": 9.5,
+   "maxWidth": 420
+  },
+  "property.plotNumber": {
+   "page": 0,
+   "x": 68,
+   "y": 321,
+   "size": 9.5,
+   "maxWidth": 185
+  },
+  "property.makaniNumber": {
+   "page": 0,
+   "x": 350,
+   "y": 321,
+   "size": 9.5,
+   "maxWidth": 160
+  },
+  "property.buildingName": {
+   "page": 0,
+   "x": 90,
+   "y": 298,
+   "size": 9.5,
+   "maxWidth": 165
+  },
+  "property.propertyNumber": {
+   "page": 0,
+   "x": 352,
+   "y": 298,
+   "size": 9.5,
+   "maxWidth": 160
+  },
+  "property.propertyType": {
+   "page": 0,
+   "x": 90,
+   "y": 275,
+   "size": 9.5,
+   "maxWidth": 165
+  },
+  "property.areaSqm": {
+   "page": 0,
+   "x": 378,
+   "y": 275,
+   "size": 9.5,
+   "maxWidth": 112
+  },
+  "property.location": {
+   "page": 0,
+   "x": 72,
+   "y": 252,
+   "size": 9.5,
+   "maxWidth": 183
+  },
+  "property.premisesNo": {
+   "page": 0,
+   "x": 386,
+   "y": 252,
+   "size": 9.5,
+   "maxWidth": 118
+  },
+  "terms.startDate": {
+   "page": 0,
+   "x": 95,
+   "y": 195,
+   "size": 9,
+   "maxWidth": 72,
+   "format": "date"
+  },
+  "terms.endDate": {
+   "page": 0,
+   "x": 178,
+   "y": 195,
+   "size": 9,
+   "maxWidth": 76,
+   "format": "date"
+  },
+  "terms.contractValue": {
+   "page": 0,
+   "x": 362,
+   "y": 195,
+   "size": 9.5,
+   "maxWidth": 150
+  },
+  "terms.annualRent": {
+   "page": 0,
+   "x": 82,
+   "y": 170,
+   "size": 9.5,
+   "maxWidth": 160
+  },
+  "terms.securityDeposit": {
+   "page": 0,
+   "x": 400,
+   "y": 170,
+   "size": 9.5,
+   "maxWidth": 112
+  },
+  "derived.paymentMode": {
+   "page": 0,
+   "x": 102,
+   "y": 148,
+   "size": 9.5,
+   "maxWidth": 415
+  },
+  "derived.tenantSignedDate": [
+   {
+    "page": 0,
+    "x": 200,
+    "y": 38,
+    "size": 9,
+    "maxWidth": 65,
+    "format": "date"
+   },
+   {
+    "page": 2,
+    "x": 200,
+    "y": 68.3,
+    "size": 9,
+    "maxWidth": 65,
+    "format": "date"
+   }
+  ],
+  "derived.landlordSignedDate": [
+   {
+    "page": 0,
+    "x": 474,
+    "y": 38,
+    "size": 9,
+    "maxWidth": 60,
+    "format": "date"
+   },
+   {
+    "page": 2,
+    "x": 474,
+    "y": 68.3,
+    "size": 9,
+    "maxWidth": 60,
+    "format": "date"
+   }
+  ],
+  "derived.tenantSignatureLine1": [
+   {
+    "page": 0,
+    "x": 36,
+    "y": 82,
+    "size": 6.5,
+    "maxWidth": 250
+   },
+   {
+    "page": 2,
+    "x": 36,
+    "y": 102,
+    "size": 6.5,
+    "maxWidth": 250
+   }
+  ],
+  "derived.tenantSignatureLine2": [
+   {
+    "page": 0,
+    "x": 36,
+    "y": 73,
+    "size": 6.5,
+    "maxWidth": 250
+   },
+   {
+    "page": 2,
+    "x": 36,
+    "y": 93,
+    "size": 6.5,
+    "maxWidth": 250
+   }
+  ],
+  "derived.landlordSignatureLine1": [
+   {
+    "page": 0,
+    "x": 308,
+    "y": 82,
+    "size": 6.5,
+    "maxWidth": 250
+   },
+   {
+    "page": 2,
+    "x": 308,
+    "y": 102,
+    "size": 6.5,
+    "maxWidth": 250
+   }
+  ],
+  "derived.landlordSignatureLine2": [
+   {
+    "page": 0,
+    "x": 308,
+    "y": 73,
+    "size": 6.5,
+    "maxWidth": 250
+   },
+   {
+    "page": 2,
+    "x": 308,
+    "y": 93,
+    "size": 6.5,
+    "maxWidth": 250
+   }
+  ]
+ },
+ "marks": {
+  "property.usage": {
+   "industrial": {
+    "page": 0,
+    "x": 152,
+    "y": 346.5,
+    "r": 3.4
+   },
+   "commercial": {
+    "page": 0,
+    "x": 259,
+    "y": 346.5,
+    "r": 3.4
+   },
+   "residential": {
+    "page": 0,
+    "x": 372,
+    "y": 346.5,
+    "r": 3.4
+   }
+  }
+ }
+}

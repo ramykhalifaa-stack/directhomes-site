@@ -31,10 +31,14 @@ export const REQUIRED_PROPERTY = [
   "propertyNumber",
   "propertyType",
   "areaSqm",
+  "location",
   "usage",
   "premisesNo",
 ];
-export const REQUIRED_TERMS = ["startDate", "endDate", "annualRent", "securityDeposit", "paymentCheques"];
+export const REQUIRED_TERMS = ["startDate", "endDate", "annualRent", "contractValue", "securityDeposit", "paymentCheques"];
+
+/** The only usages the official form can show. */
+export const PROPERTY_USAGES = ["industrial", "commercial", "residential"];
 
 export function requiredPaths(c: Contract): string[] {
   const paths: string[] = [];
@@ -98,6 +102,10 @@ export function computeReadiness(c: Contract, today = new Date()): Readiness {
   const { startDate, endDate } = c.terms;
   if (startDate && endDate && new Date(endDate) <= new Date(startDate)) {
     issues.push({ code: "invalid_period", field: "terms.endDate", message: "End date must be after start date" });
+  }
+
+  if (c.property.usage && !PROPERTY_USAGES.includes(c.property.usage.trim().toLowerCase())) {
+    issues.push({ code: "invalid_usage", field: "property.usage", message: "Property usage must be Industrial, Commercial or Residential" });
   }
 
   if (c.landlord.name && c.property.ownerName && normalizeName(c.landlord.name) !== normalizeName(c.property.ownerName)) {
