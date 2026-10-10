@@ -44,7 +44,8 @@ const dubaiToday = (now: Date) => new Date(now.getTime() + 4 * 3600_000).toISOSt
 
 function signatureValue(c: Contract, role: PartyRole, part: "Date" | "Line1" | "Line2"): string {
   const s = c.signatures[role];
-  if (s?.status !== "signed") return "";
+  // A paper signature is written by the signer on the printed form, so nothing is pre-printed for it.
+  if (s?.status !== "signed" || s.method === "manual") return "";
   if (part === "Date") return (s.signedAt ?? "").slice(0, 10);
   if (part === "Line1") return "Electronically signed (UAE PASS)";
   return `Ref ${s.signatureId ?? "-"}  ${(s.signedAt ?? "").slice(0, 16).replace("T", " ")} UTC`;
@@ -55,7 +56,10 @@ export function derivedValue(c: Contract, key: string, now = new Date()): string
   switch (key) {
     case "date": {
       // Contract date: the later signature date once signed, otherwise today in Dubai.
-      const signed = Object.values(c.signatures).flatMap((s) => (s?.signedAt ? [s.signedAt.slice(0, 10)] : []));
+      const signed = Object.values(c.signatures).flatMap((s) => {
+        const day = s?.signedOn ?? s?.signedAt?.slice(0, 10);
+        return day ? [day] : [];
+      });
       return signed.length === 2 ? signed.sort().at(-1)! : dubaiToday(now);
     }
     case "paymentMode": {

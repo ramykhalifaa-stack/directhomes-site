@@ -64,6 +64,19 @@ Each external provider sits behind one interface. Mode per provider is set by en
 - `signed`: both parties signed.
 - `registered`: Ejari number issued. If escrow is requested, the deposit must be funded first.
 
+## 5a. Assisted mode
+
+For steps with no usable API (title deed check, clearance, Ejari registration) or no approval yet (UAE PASS, Trustin), staff perform the step through the official channel and record the result. Rules enforced by the server:
+
+- every record needs at least one photo or scan (evidence), stored encrypted and hashed;
+- title deed and clearance records are tied to the property details (title deed number, owner, plot, property number, building): changing any of them makes the records stale and verification refuses them;
+- a paper signature can only be recorded after signing started (which freezes the contract hash), with the date written on the copy (not in the future);
+- a deposit record is required before Ejari when the contract uses a deposit hold; an Ejari record needs a plausible number, a channel and a date;
+- a manual record is refused where that step is automatic, and the API route is refused where the step is manual, so the two can never be mixed up;
+- deployed servers (`NODE_ENV=production`) default to manual and refuse mock providers unless explicitly allowed, so a fake registration number cannot be produced by a missing setting.
+
+What this does not prove: that the staff member really performed the check. It records who said so, when, with what evidence. Whether this is acceptable, including paper signing, is for counsel to confirm.
+
 ## 6. Data protection
 
 Documents contain Emirates ID numbers and property data, which are personal data. Points to settle before real data is used:

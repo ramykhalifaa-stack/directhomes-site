@@ -14,6 +14,8 @@ export class NotConfiguredError extends Error {
 
 export interface IdentityProvider {
   readonly name: string;
+  /** true: this step is done by staff and recorded through an attestation endpoint, not by an API */
+  readonly manual?: boolean;
   /** Start a signing request for one party over a frozen document hash. */
   startSigning(a: { contractId: string; role: PartyRole; documentHash: string; emiratesId?: string }): Promise<{ requestId: string; authUrl?: string }>;
   /** Poll the result of a signing request. */
@@ -22,6 +24,8 @@ export interface IdentityProvider {
 
 export interface TitleDeedVerifier {
   readonly name: string;
+  /** true: this step is done by staff and recorded through an attestation endpoint, not by an API */
+  readonly manual?: boolean;
   verify(a: { titleDeedNumber: string; ownerName?: string }): Promise<{ valid: boolean; notes: string[] }>;
 }
 
@@ -32,17 +36,23 @@ export interface ClearanceIssue {
 
 export interface ClearanceChecker {
   readonly name: string;
+  /** true: this step is done by staff and recorded through an attestation endpoint, not by an API */
+  readonly manual?: boolean;
   check(a: { titleDeedNumber: string; propertyNumber?: string; buildingName?: string }): Promise<{ clear: boolean; issues: ClearanceIssue[] }>;
 }
 
 export interface EscrowProvider {
   readonly name: string;
+  /** true: this step is done by staff and recorded through an attestation endpoint, not by an API */
+  readonly manual?: boolean;
   openAccount(a: { contractId: string; amount: string; payerRole: PartyRole }): Promise<{ accountRef: string }>;
   getFundingStatus(accountRef: string): Promise<{ status: "pending" | "funded" }>;
 }
 
 export interface EjariProvider {
   readonly name: string;
+  /** true: this step is done by staff and recorded through an attestation endpoint, not by an API */
+  readonly manual?: boolean;
   register(a: { contractId: string; documentHash: string; titleDeedNumber: string; landlordId: string; tenantId: string }): Promise<{ ejariNumber: string; registeredAt: string }>;
 }
 

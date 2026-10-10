@@ -14,4 +14,4 @@ Method: web searches, using the pages' own wording as returned by the search too
 
 ## Consequence for the design
 
-The interfaces in `server/src/integrations/types.ts` assumed an API for every provider. For title deed, clearance and (probably) Ejari there is none available to Direct Homes, so those steps need a manual "assisted mode": staff do the check or registration through the official channel and record the result with evidence. Escrow and signing can stay API-based once approvals exist. See the decision recorded in the launch pack.
+The interfaces in `server/src/integrations/types.ts` assumed an API for every provider. For title deed, clearance and (probably) Ejari there is none available to Direct Homes, so those steps need a manual "assisted mode": staff do the check or registration through the official channel and record the result with evidence. Escrow and signing can stay API-based once approvals exist. Assisted mode is now built (see `SPEC.md` section 5a and the runbook in the README).

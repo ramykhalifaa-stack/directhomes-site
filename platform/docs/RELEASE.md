@@ -39,6 +39,10 @@ eas submit --platform android
 Use `--profile preview` first to distribute internal builds (TestFlight, Play internal testing) to pilot users.
 Bundle identifiers are `ae.directhomes.platform` in `app.json`; change them now if another id is wanted, they cannot be changed after the first store release.
 
+## 3a. Production settings
+
+The Docker image sets `NODE_ENV=production`: integrations default to assisted (manual) mode, document reading defaults to store-only, and mock providers are refused. Provide `PILOT_API_TOKEN`, `DATABASE_FILE`, `DOCUMENT_DIR` and `DOCUMENT_KEY` (see the README table). Never enable `EXTRACTOR=claude` before counsel approves sending personal documents to an outside AI service.
+
 ## 4. Hosting the API for the pilot
 
 `server/Dockerfile` builds the API. It stores data in SQLite on a mounted volume (`/data`), so run **one** instance only.

@@ -81,7 +81,37 @@ export interface Signature {
   status: "pending" | "signed";
   signatureId?: string;
   signedAt?: string;
+  /** uaepass: signed through the identity provider. manual: staff recorded a signed paper copy. */
+  method?: "uaepass" | "manual";
+  /** manual only: the date written on the signed copy, and the scan that proves it */
+  signedOn?: string;
+  evidenceIds?: string[];
 }
+
+/** A photo or scan kept as proof of a manual step (title deed check, signed copy, Ejari certificate). */
+export interface Evidence {
+  id: string;
+  label: string;
+  filename: string;
+  mimeType: string;
+  sha256: string;
+  uploadedAt: string;
+  uploadedBy: string;
+}
+
+interface AttestationBase {
+  by: string;
+  at: string;
+  evidenceIds: string[];
+  /** hash of the property details the check was made against; a changed property makes the check stale */
+  basis: string;
+}
+export type TitleDeedAttestation = AttestationBase & { valid: boolean; notes: string[] };
+export type ClearanceAttestation = AttestationBase & {
+  clear: boolean;
+  source: string;
+  issues: { type: string; detail: string }[];
+};
 
 export interface Contract {
   id: string;
@@ -96,12 +126,21 @@ export interface Contract {
     at: string;
     titleDeed: { valid: boolean; notes: string[] };
     clearance: { clear: boolean; issues: { type: string; detail: string }[] };
+    source?: "api" | "manual";
   };
+  evidence?: Evidence[];
+  attestations?: { titleDeed?: TitleDeedAttestation; clearance?: ClearanceAttestation };
   consent?: { at: string; by: string; noticeVersion: string };
   contractHash?: string;
   signatures: Partial<Record<PartyRole, Signature>>;
-  escrow?: { accountRef: string; status: "pending" | "funded" };
-  ejari?: { ejariNumber: string; registeredAt: string };
+  escrow?: {
+    accountRef: string;
+    status: "pending" | "funded";
+    /** manual: staff recorded a deposit received outside an escrow provider */
+    manual?: boolean;
+    deposit?: { method: string; reference: string; amount: string; receivedOn: string; by: string; at: string; evidenceIds: string[] };
+  };
+  ejari?: { ejariNumber: string; registeredAt: string; manual?: boolean; channel?: string; registeredOn?: string; evidenceIds?: string[] };
   createdAt: string;
   updatedAt: string;
 }

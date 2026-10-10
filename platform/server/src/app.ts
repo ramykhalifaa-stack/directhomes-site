@@ -40,7 +40,7 @@ const PatchBody = z.object({
 
 const DocBody = z.object({
   kind: DocKindSchema,
-  party: PartyRole.optional(),
+  party: PartyRole.nullish().transform((v) => v ?? undefined),
   filename: z.string().min(1),
   mimeType: z.string().min(1),
   dataBase64: z.string().min(1),
@@ -48,6 +48,37 @@ const DocBody = z.object({
 
 const ConfirmBody = z.object({ fields: z.union([z.literal("all"), z.array(z.string()).min(1)]) });
 const RoleBody = z.object({ role: PartyRole });
+const EvidenceBody = z.object({
+  label: z.string().min(1).max(80),
+  filename: z.string().min(1).max(200),
+  mimeType: z.enum(["image/jpeg", "image/png", "application/pdf"]),
+  dataBase64: z.string().min(1),
+});
+const EvidenceIds = z.array(z.string().min(1)).min(1).max(10);
+const Day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "use YYYY-MM-DD");
+const TitleDeedAttBody = z.object({ valid: z.boolean(), notes: z.array(z.string().max(300)).max(10).default([]), evidenceIds: EvidenceIds });
+const ClearanceAttBody = z
+  .object({
+    clear: z.boolean(),
+    source: z.string().min(1).max(80),
+    issues: z.array(z.object({ type: z.enum(["rental_dispute", "service_charges_overdue", "mortgage_restriction", "other"]), detail: z.string().min(1).max(300) })).max(10).default([]),
+    evidenceIds: EvidenceIds,
+  })
+  .refine((b) => b.clear || b.issues.length > 0, { message: "describe at least one issue when the property is not clear", path: ["issues"] });
+const SignatureAttBody = z.object({ role: PartyRole, signedOn: Day, evidenceIds: EvidenceIds });
+const DepositAttBody = z.object({
+  method: z.enum(["cheque", "bank_transfer", "cash", "other"]),
+  reference: z.string().min(1).max(60),
+  amount: z.string().min(1).max(30),
+  receivedOn: Day,
+  evidenceIds: EvidenceIds,
+});
+const EjariAttBody = z.object({
+  ejariNumber: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9\-/]{3,39}$/, "4 to 40 letters, digits, dashes or slashes"),
+  channel: z.enum(["dubai_rest_app", "trustee_centre", "other"]),
+  registeredOn: Day,
+  evidenceIds: EvidenceIds,
+});
 const ConsentBody = z.object({ noticeVersion: z.string().min(1).max(64) });
 const LoginStartBody = z.object({ emiratesId: z.string().optional() });
 const LoginCompleteBody = z.object({ state: z.string().min(1) });
@@ -68,6 +99,15 @@ function tokenOk(given: string | undefined, expected: string): boolean {
 export function buildApp(deps: AppDeps): FastifyInstance {
   if (!deps.apiToken) throw new Error("apiToken is required");
   const app = Fastify({ logger: false, bodyLimit: 20 * 1024 * 1024 });
+  // Clients often declare JSON on a POST that has no body (for example "create contract"); treat that as {}.
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
+    if (typeof body !== "string" || body.trim() === "") return done(null, {});
+    try {
+      done(null, JSON.parse(body));
+    } catch {
+      done(Object.assign(new Error("Malformed JSON body"), { statusCode: 400 }), undefined);
+    }
+  });
   const svc = new ContractService(deps.repo, deps.extractor, deps.integrations, deps.documents ?? new MemoryDocumentStore());
   const sessions = deps.auth?.sessions ?? new SessionStore();
   const staff = new Set((deps.auth?.staffEmiratesIds ?? []).map((s) => s.replace(/-/g, "")));
@@ -163,6 +203,23 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     const { record, bytes } = await svc.getDocument(req.params.id, req.params.docId, actorOf(req));
     return reply.header("content-type", record.mimeType).header("content-disposition", "attachment").header("cache-control", "no-store").send(bytes);
   });
+  // Assisted mode: evidence uploads and staff-recorded results of manual steps.
+  app.post<Params>("/contracts/:id/evidence", async (req, reply) => {
+    const b = EvidenceBody.parse(req.body);
+    const data = Buffer.from(b.dataBase64, "base64");
+    if (data.length === 0) throw new WorkflowError("empty file", 400);
+    return reply.code(201).send(await svc.addEvidence(req.params.id, { label: b.label, filename: b.filename, mimeType: b.mimeType, data }, actorOf(req)));
+  });
+  app.get<Params & { Params: { evidenceId: string } }>("/contracts/:id/evidence/:evidenceId", async (req, reply) => {
+    const { record, bytes } = await svc.getEvidence(req.params.id, req.params.evidenceId, actorOf(req));
+    return reply.header("content-type", record.mimeType).header("content-disposition", "attachment").header("cache-control", "no-store").send(bytes);
+  });
+  app.post<Params>("/contracts/:id/attest/title-deed", async (req) => svc.attestTitleDeed(req.params.id, TitleDeedAttBody.parse(req.body), actorOf(req)));
+  app.post<Params>("/contracts/:id/attest/clearance", async (req) => svc.attestClearance(req.params.id, ClearanceAttBody.parse(req.body), actorOf(req)));
+  app.post<Params>("/contracts/:id/attest/signature", async (req) => svc.attestSignature(req.params.id, SignatureAttBody.parse(req.body), actorOf(req)));
+  app.post<Params>("/contracts/:id/attest/deposit", async (req) => svc.attestDeposit(req.params.id, DepositAttBody.parse(req.body), actorOf(req)));
+  app.post<Params>("/contracts/:id/attest/ejari", async (req) => svc.attestEjari(req.params.id, EjariAttBody.parse(req.body), actorOf(req)));
+
   app.post<Params>("/contracts/:id/confirm", async (req) => svc.confirm(req.params.id, ConfirmBody.parse(req.body).fields, actorOf(req)));
   app.get<Params>("/contracts/:id/readiness", async (req) => svc.readiness(req.params.id));
   app.post<Params>("/contracts/:id/verify", async (req) => svc.verify(req.params.id, actorOf(req)));

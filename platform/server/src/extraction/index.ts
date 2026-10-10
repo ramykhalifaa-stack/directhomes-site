@@ -115,12 +115,35 @@ export class ClaudeExtractor implements DocumentExtractor {
   }
 }
 
+/**
+ * Assisted mode: the document is kept (encrypted) but nothing is read from it, and nothing is sent to
+ * a third party. Staff type the values in while looking at the document, then confirm them.
+ */
+export class ManualExtractor implements DocumentExtractor {
+  readonly name = "manual";
+  async extract(): Promise<Extracted> {
+    return {};
+  }
+}
+
+/**
+ * EXTRACTOR = manual | mock | claude. With NODE_ENV=production the default is manual, and mock is refused
+ * unless ALLOW_MOCK_INTEGRATIONS=1. claude sends documents to an outside AI service: only enable it once
+ * counsel has approved that for personal data.
+ */
 export function createExtractor(env = process.env): DocumentExtractor {
-  if ((env.EXTRACTOR ?? "mock") === "claude") {
+  const production = env.NODE_ENV === "production";
+  const mode = env.EXTRACTOR ?? (production ? "manual" : "mock");
+  if (mode === "claude") {
     if (!env.ANTHROPIC_API_KEY) throw new Error("EXTRACTOR=claude requires ANTHROPIC_API_KEY");
     return new ClaudeExtractor(env.ANTHROPIC_API_KEY);
   }
-  return new MockExtractor();
+  if (mode === "manual") return new ManualExtractor();
+  if (mode === "mock") {
+    if (production && env.ALLOW_MOCK_INTEGRATIONS !== "1") throw new Error("EXTRACTOR=mock in production needs ALLOW_MOCK_INTEGRATIONS=1");
+    return new MockExtractor();
+  }
+  throw new Error(`Unknown EXTRACTOR '${mode}' (use manual, mock or claude)`);
 }
 
 export type { PartyRole };

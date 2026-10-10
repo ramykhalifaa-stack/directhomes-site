@@ -4,7 +4,8 @@ import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { Api, type Contract, type DocKind, type Readiness, type Role } from "./api";
+import { Api, type Contract, type DocKind, type Modes, type Readiness, type Role } from "./api";
+import { ManualSteps } from "./ManualSteps";
 
 const FIELD_GROUPS: { title: string; section: "landlord" | "tenant" | "property" | "terms"; fields: string[] }[] = [
   { title: "Landlord", section: "landlord", fields: ["name", "emiratesId", "email", "phone"] },
@@ -20,6 +21,7 @@ export default function App() {
   const [contract, setContract] = useState<Contract>();
   const [readiness, setReadiness] = useState<Readiness>();
   const [busy, setBusy] = useState(false);
+  const [modes, setModes] = useState<Modes>({});
   const api = useMemo(() => new Api(baseUrl, token), [baseUrl, token]);
 
   useEffect(() => {
@@ -73,6 +75,7 @@ export default function App() {
               run(async () => {
                 await fetch(baseUrl + "/health").then((r) => { if (!r.ok) throw new Error("Server not reachable"); });
                 await SecureStore.setItemAsync("api", JSON.stringify({ baseUrl, token }));
+                setModes(await new Api(baseUrl, token).integrations());
                 setConnected(true);
               })
             }
@@ -160,7 +163,7 @@ export default function App() {
           </>
         )}
 
-        {(c.status === "verified" || c.status === "signing") && (
+        {(c.status === "verified" || c.status === "signing") && modes.identity !== "manual" && (
           <>
             <Text style={s.h2}>4. Sign (UAE PASS)</Text>
             {(["landlord", "tenant"] as Role[]).map((role) => {
@@ -179,12 +182,13 @@ export default function App() {
         {c.status === "signed" && (
           <>
             <Text style={s.h2}>5. Deposit and registration</Text>
-            {c.terms.useEscrow && !c.escrow && <Button title="Open escrow account" onPress={() => run(async () => refresh(await api.openEscrow(c.id)))} />}
-            {c.escrow && <Button title={`Escrow ${c.escrow.status}: refresh`} onPress={() => run(async () => refresh(await api.refreshEscrow(c.id)))} />}
-            <Button title="Register with Ejari" onPress={() => run(async () => refresh(await api.registerEjari(c.id)))} />
+            {modes.escrow !== "manual" && c.terms.useEscrow && !c.escrow && <Button title="Open escrow account" onPress={() => run(async () => refresh(await api.openEscrow(c.id)))} />}
+            {modes.escrow !== "manual" && c.escrow && <Button title={`Escrow ${c.escrow.status}: refresh`} onPress={() => run(async () => refresh(await api.refreshEscrow(c.id)))} />}
+            {modes.ejari !== "manual" && <Button title="Register with Ejari" onPress={() => run(async () => refresh(await api.registerEjari(c.id)))} />}
           </>
         )}
 
+        <ManualSteps api={api} contract={c} modes={modes} onChange={refresh} run={run} />
         {c.ejari && <Text style={s.badge}>Ejari: {c.ejari.ejariNumber}</Text>}
         <View style={{ height: 16 }} />
         <Button title="Open contract PDF" onPress={() => run(async () => { await Linking.openURL(await api.pdfUrl(c.id)); })} />

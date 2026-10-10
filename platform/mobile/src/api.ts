@@ -10,11 +10,15 @@ export interface Contract {
   terms: Record<string, string | boolean>;
   provenance: Record<string, { source: string; confidence?: number; confirmed: boolean }>;
   verification?: { titleDeed: { valid: boolean; notes: string[] }; clearance: { clear: boolean; issues: { type: string; detail: string }[] } };
-  signatures: Partial<Record<Role, { status: "pending" | "signed" }>>;
-  escrow?: { accountRef: string; status: "pending" | "funded" };
-  ejari?: { ejariNumber: string };
+  signatures: Partial<Record<Role, { status: "pending" | "signed"; method?: "uaepass" | "manual"; signedOn?: string }>>;
+  escrow?: { accountRef: string; status: "pending" | "funded"; manual?: boolean };
+  attestations?: { titleDeed?: { valid: boolean }; clearance?: { clear: boolean } };
+  ejari?: { ejariNumber: string; manual?: boolean };
   consent?: { at: string; noticeVersion: string };
 }
+
+/** Which provider handles each step: "manual" means staff do it and record the result. */
+export type Modes = Partial<Record<"identity" | "titleDeed" | "clearance" | "escrow" | "ejari", string>>;
 
 export interface Readiness {
   ready: boolean;
@@ -29,7 +33,7 @@ export class Api {
   private async req<T>(method: string, path: string, body?: unknown): Promise<T> {
     const res = await fetch(this.baseUrl + path, {
       method,
-      headers: { authorization: `Bearer ${this.token}`, "content-type": "application/json" },
+      headers: body === undefined ? { authorization: `Bearer ${this.token}` } : { authorization: `Bearer ${this.token}`, "content-type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const json = await res.json().catch(() => ({}));
@@ -37,6 +41,19 @@ export class Api {
     return json as T;
   }
 
+  integrations = () => this.req<Modes>("GET", "/integrations");
+  addEvidence = (id: string, label: string, mimeType: "image/jpeg" | "image/png", dataBase64: string) =>
+    this.req<{ evidence: { id: string } }>("POST", `/contracts/${id}/evidence`, { label, filename: `${label}.jpg`, mimeType, dataBase64 });
+  attestTitleDeed = (id: string, valid: boolean, notes: string[], evidenceIds: string[]) =>
+    this.req<Contract>("POST", `/contracts/${id}/attest/title-deed`, { valid, notes, evidenceIds });
+  attestClearance = (id: string, clear: boolean, source: string, issues: { type: string; detail: string }[], evidenceIds: string[]) =>
+    this.req<Contract>("POST", `/contracts/${id}/attest/clearance`, { clear, source, issues, evidenceIds });
+  attestSignature = (id: string, role: Role, signedOn: string, evidenceIds: string[]) =>
+    this.req<Contract>("POST", `/contracts/${id}/attest/signature`, { role, signedOn, evidenceIds });
+  attestDeposit = (id: string, b: { method: string; reference: string; amount: string; receivedOn: string; evidenceIds: string[] }) =>
+    this.req<Contract>("POST", `/contracts/${id}/attest/deposit`, b);
+  attestEjari = (id: string, b: { ejariNumber: string; channel: string; registeredOn: string; evidenceIds: string[] }) =>
+    this.req<Contract>("POST", `/contracts/${id}/attest/ejari`, b);
   create = () => this.req<Contract>("POST", "/contracts");
   get = (id: string) => this.req<Contract>("GET", `/contracts/${id}`);
   patch = (id: string, p: object) => this.req<Contract>("PATCH", `/contracts/${id}`, p);

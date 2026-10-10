@@ -128,6 +128,13 @@ export function computeReadiness(c: Contract, today = new Date()): Readiness {
   return { ready: missing.length + unconfirmed.length + issues.length === 0, missing, unconfirmed, issues };
 }
 
+/** Fingerprint of the property details a title deed or clearance check is about. */
+export function propertyBasis(c: Contract): string {
+  const p = c.property;
+  const pick = [p.titleDeedNumber, p.ownerName, p.plotNumber, p.propertyNumber, p.buildingName].map((v) => (v ?? "").trim().toLowerCase());
+  return createHash("sha256").update(JSON.stringify(pick)).digest("hex");
+}
+
 /** Canonical content hash used to freeze the contract before signing. */
 export function contractHash(c: Contract): string {
   const canonical = JSON.stringify({

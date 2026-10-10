@@ -14,9 +14,9 @@ Design and open questions: [`docs/SPEC.md`](docs/SPEC.md).
 
 | Part | State |
 |---|---|
-| API server (`server/`) | Built; 50 automated tests pass against mock integrations. Optional durable SQLite storage (`DATABASE_FILE`), AES-256-GCM encrypted original-document storage (`DOCUMENT_DIR`), per-user login with a staff allow-list, recorded data-processing consent, rate limiting, official-form stamping |
+| API server (`server/`) | Built; 66 automated tests pass against mock integrations. Optional durable SQLite storage (`DATABASE_FILE`), AES-256-GCM encrypted original-document storage (`DOCUMENT_DIR`), per-user login with a staff allow-list, recorded data-processing consent, rate limiting, official-form stamping |
 | Document extraction | Mock (JSON fixtures) tested; Claude vision adapter written, tested with a stubbed network only |
-| UAE PASS, Trustin, Ejari, title deed, clearance | Interfaces and mocks only. **No live adapters.** Real API access and schemas are unverified |
+| UAE PASS, Trustin, Ejari, title deed, clearance | **Assisted mode built (staff do each step through the official channel and record it with evidence).** No live API adapters: access is unverified or unavailable, see `docs/INTEGRATION_FINDINGS.md` |
 | Contract PDF | **Stamped onto the official Dubai Land Department / Ejari unified tenancy contract** (3-page form you supplied, bundled unmodified in `server/templates/`), with e-signature evidence in the signature boxes. Latin text only; Arabic values, the page 3 "Additional Terms" lines and legal sign-off on the form version are still open. `TEMPLATE_MODE=draft` gives the old draft layout |
 | Mobile app (`mobile/`) | Source written and typechecks; **never run on a device or simulator**, no store build |
 | App Store / Google Play | Build config (`mobile/eas.json`) and a step-by-step guide in [`docs/RELEASE.md`](docs/RELEASE.md). Not executed: needs your Apple and Google organisation accounts |
@@ -37,12 +37,13 @@ Environment variables:
 | Variable | Values | Meaning |
 |---|---|---|
 | `PILOT_API_TOKEN` | required | Bearer token for the pilot API |
-| `EXTRACTOR` | `mock` (default), `claude` | `claude` needs `ANTHROPIC_API_KEY`; sends documents to a third party |
+| `EXTRACTOR` | `manual`, `mock`, `claude` | `manual` stores the document and reads nothing (staff type the values; nothing leaves the server). `claude` needs `ANTHROPIC_API_KEY` and sends documents to a third party, so enable it only after counsel approves. Default: `mock`, but `manual` when `NODE_ENV=production` |
 | `DOCUMENT_DIR`, `DOCUMENT_KEY` | optional pair | Store original documents encrypted on disk; key is 64 hex characters from a secret manager. Without them documents are held in memory and lost on restart |
 | `AUTH_MODE`, `STAFF_EMIRATES_IDS` | `disabled` (default) / `mock` / `live`; comma list | Per-user login. `mock` trusts any claimed Emirates ID, so use it only on a machine nobody else can reach. `live` (UAE PASS) is not implemented. Only listed identities get a session. `PILOT_API_TOKEN` remains as a break-glass operator credential |
 | `DATABASE_FILE` | path, optional | Persist data in SQLite; without it data is lost on restart |
 | `TEMPLATE_MODE`, `OFFICIAL_TEMPLATE_PDF`, `OFFICIAL_TEMPLATE_MAP` | optional | Official form is used by default. `draft` switches to the generated layout; the two paths point to a revised form and its coordinate map |
-| `IDENTITY_MODE`, `TITLE_DEED_MODE`, `CLEARANCE_MODE`, `ESCROW_MODE`, `EJARI_MODE` | `mock` (default), `live` | `live` fails at startup until a live adapter exists |
+| `IDENTITY_MODE`, `TITLE_DEED_MODE`, `CLEARANCE_MODE`, `ESCROW_MODE`, `EJARI_MODE` | `manual`, `mock`, `live` | `manual` = assisted mode (staff record the result). `mock` = fakes for development. `live` fails at startup until a live adapter exists. Default: `mock`, but `manual` when `NODE_ENV=production` |
+| `ALLOW_MOCK_INTEGRATIONS` | `1` | Only for demos: allows mocks when `NODE_ENV=production` (otherwise refused) |
 
 Mock triggers for demos: title deed number starting `BAD` fails verification; property number
 ending `99` has overdue service charges; ending `98` has a rental dispute.
@@ -60,8 +61,24 @@ The app needs a camera for scanning, so use a real phone (Expo Go or a dev build
 Against the mock extractor, scans will fail by design (it only reads JSON fixtures); use
 `EXTRACTOR=claude` with a test document, or post fixtures from `server/fixtures/` via the API.
 
+## Assisted mode runbook (pilot)
+
+The Docker image runs with `NODE_ENV=production`, so every step is assisted by default. For each contract, staff:
+
+1. **Start a contract** and record consent (both parties have seen the data-processing notice).
+2. **Scan** the Emirates IDs and title deed (stored encrypted), then **type the values** while reading the documents, and confirm them.
+3. **Title deed check:** verify the deed in the Dubai REST app or on the DLD website, photograph the result, record it (valid or problem).
+4. **Clearance check:** obtain proof that there are no unpaid service charges or open rental disputes (for example a management company statement), photograph it, record it.
+5. **Verify** in the app. This passes only if both records exist, belong to the current property details, and the data checks pass.
+6. **Print** the official contract (it is generated from the confirmed data), have both parties sign, **record each signed copy** with a photo and the date written on it. The contract is frozen from the moment signing starts.
+7. **Deposit** (if used): record how it was paid, the reference and amount, with a photo of the receipt.
+8. **Ejari:** register in the Dubai REST app or at a trustee centre, then record the Ejari number, channel and date with a photo of the certificate.
+
+Every step is audited with the person who did it and the SHA-256 of each photo. Editing the property details after a check makes that check stale, and the app asks for it again.
+
 ## Adding a real integration
 
+0. A step can switch from manual to automatic one provider at a time (set that provider's `*_MODE`); the attestation routes then close and the API routes open.
 1. Obtain partner credentials and API documentation from the provider.
 2. Implement the matching interface from `server/src/integrations/types.ts` in
    `server/src/integrations/live/<provider>.ts`, mapping the provider's schema onto ours.

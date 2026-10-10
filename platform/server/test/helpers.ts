@@ -9,11 +9,11 @@ export const auth = { authorization: `Bearer ${TOKEN}` };
 
 export function makeApp(env: Record<string, string> = {}, extra: Partial<Parameters<typeof buildApp>[0]> = {}) {
   return buildApp({
-    ...extra,
     repo: new MemoryRepo(),
     extractor: new MockExtractor(),
     integrations: createIntegrations(env as NodeJS.ProcessEnv),
     apiToken: TOKEN,
+    ...extra, // overrides win
   });
 }
 
