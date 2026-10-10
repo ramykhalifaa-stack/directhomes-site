@@ -14,7 +14,7 @@ Design and open questions: [`docs/SPEC.md`](docs/SPEC.md).
 
 | Part | State |
 |---|---|
-| API server (`server/`) | Built; 19 automated tests pass against mock integrations. Optional durable SQLite storage (`DATABASE_FILE`), official-form overlay (`OFFICIAL_TEMPLATE_PDF`, `OFFICIAL_TEMPLATE_MAP`) |
+| API server (`server/`) | Built; 29 automated tests pass against mock integrations. Optional durable SQLite storage (`DATABASE_FILE`), AES-256-GCM encrypted original-document storage (`DOCUMENT_DIR`), per-user login with a staff allow-list, recorded data-processing consent, rate limiting, official-form overlay (`OFFICIAL_TEMPLATE_PDF`, `OFFICIAL_TEMPLATE_MAP`) |
 | Document extraction | Mock (JSON fixtures) tested; Claude vision adapter written, tested with a stubbed network only |
 | UAE PASS, Trustin, Ejari, title deed, clearance | Interfaces and mocks only. **No live adapters.** Real API access and schemas are unverified |
 | Contract PDF | Field-complete draft layout, clearly marked as NOT the official form |
@@ -37,6 +37,8 @@ Environment variables:
 |---|---|---|
 | `PILOT_API_TOKEN` | required | Bearer token for the pilot API |
 | `EXTRACTOR` | `mock` (default), `claude` | `claude` needs `ANTHROPIC_API_KEY`; sends documents to a third party |
+| `DOCUMENT_DIR`, `DOCUMENT_KEY` | optional pair | Store original documents encrypted on disk; key is 64 hex characters from a secret manager. Without them documents are held in memory and lost on restart |
+| `AUTH_MODE`, `STAFF_EMIRATES_IDS` | `disabled` (default) / `mock` / `live`; comma list | Per-user login. `mock` trusts any claimed Emirates ID, so use it only on a machine nobody else can reach. `live` (UAE PASS) is not implemented. Only listed identities get a session. `PILOT_API_TOKEN` remains as a break-glass operator credential |
 | `DATABASE_FILE` | path, optional | Persist data in SQLite; without it data is lost on restart |
 | `OFFICIAL_TEMPLATE_PDF`, `OFFICIAL_TEMPLATE_MAP` | paths, optional | Stamp data onto the official form using a JSON field map |
 | `IDENTITY_MODE`, `TITLE_DEED_MODE`, `CLEARANCE_MODE`, `ESCROW_MODE`, `EJARI_MODE` | `mock` (default), `live` | `live` fails at startup until a live adapter exists |
@@ -70,8 +72,9 @@ Against the mock extractor, scans will fail by design (it only reads JSON fixtur
 - [ ] Private repository; secret scanning on
 - [ ] Legal sign-off: official unified contract form, e-signature validity, Direct Homes' authority to register with Ejari
 - [ ] Official form PDF and its field map supplied (see `server/src/contract/overlay.ts`), then verify every field position on a real printout
-- [ ] Encrypted document storage in a UAE region (documents are not stored yet, only their hashes); Postgres if more than one instance is needed
-- [ ] Per-user authentication (UAE PASS login) replacing the shared pilot token
+- [ ] Move document storage to a UAE-region object store with managed keys (the pilot encrypts on local disk); Postgres and a shared rate-limit store if more than one instance is needed
+- [ ] Legal-approved data-processing notice text (the app records a notice version string; the text itself is not written)
+- [ ] Live UAE PASS login adapter (the session, allow-list and audit-by-person plumbing already exists); then retire the shared `PILOT_API_TOKEN` or lock it away
 - [ ] Data protection review for the extraction provider and document retention
 - [ ] Live adapters for each provider, tested in their sandboxes
 - [ ] App built, tested on devices, privacy labels completed, submitted to both stores

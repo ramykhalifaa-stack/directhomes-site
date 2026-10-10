@@ -3,6 +3,8 @@ import { createExtractor } from "./extraction/index.js";
 import { createIntegrations } from "./integrations/registry.js";
 import { readFileSync } from "node:fs";
 import { OverlayMapSchema } from "./contract/overlay.js";
+import { createAuthProvider } from "./auth.js";
+import { EncryptedFileDocumentStore, MemoryDocumentStore } from "./store/documents.js";
 import { MemoryRepo } from "./store/repo.js";
 import { SqliteRepo } from "./store/sqlite.js";
 
@@ -21,7 +23,23 @@ const officialTemplate =
       }
     : undefined;
 
+// Original documents hold personal data: with DOCUMENT_DIR they are encrypted on disk (DOCUMENT_KEY = 64 hex chars).
+if (process.env.DOCUMENT_DIR && !process.env.DOCUMENT_KEY) {
+  console.error("DOCUMENT_DIR requires DOCUMENT_KEY (64 hex characters, from a secret manager)");
+  process.exit(1);
+}
+const documents = process.env.DOCUMENT_DIR
+  ? new EncryptedFileDocumentStore(process.env.DOCUMENT_DIR, process.env.DOCUMENT_KEY!)
+  : new MemoryDocumentStore();
+
+// Per-user login: AUTH_MODE=disabled (default) | mock (dev only) | live (not implemented). Only STAFF_EMIRATES_IDS may log in.
+const authProvider = createAuthProvider();
+
 const app = buildApp({
+  documents,
+  auth: authProvider
+    ? { provider: authProvider, staffEmiratesIds: (process.env.STAFF_EMIRATES_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean) }
+    : undefined,
   // DATABASE_FILE makes data survive restarts; without it everything is in memory and lost on exit.
   repo: process.env.DATABASE_FILE ? new SqliteRepo(process.env.DATABASE_FILE) : new MemoryRepo(),
   officialTemplate,

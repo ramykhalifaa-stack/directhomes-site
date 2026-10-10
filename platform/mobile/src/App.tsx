@@ -103,7 +103,18 @@ export default function App() {
         <Text style={s.h1}>Contract {c.id.slice(0, 8)}</Text>
         <Text style={s.badge}>Status: {c.status}</Text>
 
-        {editable && (
+        {editable && !c.consent && (
+          <>
+            <Text style={s.h2}>0. Data-processing consent</Text>
+            <Text>
+              Before scanning or entering anyone's details, show the landlord and the tenant the data-processing notice and confirm that each agrees.
+              The notice text must be the version approved by Direct Homes' legal counsel.
+            </Text>
+            <Button title="Both parties have agreed (notice v0-draft)" onPress={() => run(async () => refresh(await api.recordConsent(c.id, "v0-draft")))} />
+          </>
+        )}
+
+        {editable && c.consent && (
           <>
             <Text style={s.h2}>1. Scan documents</Text>
             <Button title="Scan landlord Emirates ID" onPress={() => scan("emirates_id", "landlord")} />

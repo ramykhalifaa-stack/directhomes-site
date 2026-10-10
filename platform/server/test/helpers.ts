@@ -7,8 +7,9 @@ import { MemoryRepo } from "../src/store/repo.js";
 export const TOKEN = "test-token-0123456789";
 export const auth = { authorization: `Bearer ${TOKEN}` };
 
-export function makeApp(env: Record<string, string> = {}) {
+export function makeApp(env: Record<string, string> = {}, extra: Partial<Parameters<typeof buildApp>[0]> = {}) {
   return buildApp({
+    ...extra,
     repo: new MemoryRepo(),
     extractor: new MockExtractor(),
     integrations: createIntegrations(env as NodeJS.ProcessEnv),
@@ -26,6 +27,13 @@ export async function call(app: App, method: "GET" | "POST" | "PATCH", url: stri
   return { status: res.statusCode, body: res.headers["content-type"]?.toString().includes("json") ? res.json() : res.rawPayload };
 }
 
+/** Creates a contract and records consent, the precondition for entering personal data. */
+export async function newConsentedContract(app: App): Promise<string> {
+  const { body: c } = await call(app, "POST", "/contracts");
+  await call(app, "POST", `/contracts/${c.id}/consent`, { noticeVersion: "test-v1" });
+  return c.id as string;
+}
+
 export async function upload(app: App, id: string, kind: string, name: string, party?: string) {
   return call(app, "POST", `/contracts/${id}/documents`, {
     kind,
@@ -40,6 +48,7 @@ export async function upload(app: App, id: string, kind: string, name: string, p
 export async function readyContract(app: App, termsOverride: Record<string, unknown> = {}) {
   const { body: c } = await call(app, "POST", "/contracts");
   const id = c.id as string;
+  await call(app, "POST", `/contracts/${id}/consent`, { noticeVersion: "test-v1" });
   await upload(app, id, "emirates_id", "landlord_emirates_id", "landlord");
   await upload(app, id, "emirates_id", "tenant_emirates_id", "tenant");
   await upload(app, id, "title_deed", "title_deed");

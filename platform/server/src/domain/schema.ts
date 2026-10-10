@@ -96,6 +96,7 @@ export interface Contract {
     titleDeed: { valid: boolean; notes: string[] };
     clearance: { clear: boolean; issues: { type: string; detail: string }[] };
   };
+  consent?: { at: string; by: string; noticeVersion: string };
   contractHash?: string;
   signatures: Partial<Record<PartyRole, Signature>>;
   escrow?: { accountRef: string; status: "pending" | "funded" };

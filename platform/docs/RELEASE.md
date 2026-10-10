@@ -17,7 +17,7 @@ store rules and fees change.
 
 ## 2. Before building
 
-1. Replace the shared pilot token with per-user login (UAE PASS) so there is no shared secret inside the app.
+1. Build and enable the live UAE PASS login adapter and put a login screen in the app, so users sign in as themselves and no shared secret is typed into the app. (Server-side sessions and the staff allow-list already exist; the app currently still takes a token field.)
 2. Fill the app's data-collection declarations (Apple "App Privacy", Google "Data safety") truthfully: names, Emirates ID numbers, photos of documents, phone, email.
 3. Move to a stable Expo SDK, run `npx expo install --fix`, then test on real iOS and Android devices.
 4. Apple reviewers will ask how to log in. Prepare a demo account that works against a non-production server.

@@ -4,6 +4,7 @@ import type { DocumentExtractor } from "./extraction/index.js";
 import type { Contract, DocKind, DocumentRecord, Party, PartyRole, Property, Section, Terms } from "./domain/schema.js";
 import { assertStatus, computeReadiness, contractHash, WorkflowError } from "./domain/workflow.js";
 import type { Integrations } from "./integrations/types.js";
+import type { DocumentStore } from "./store/documents.js";
 import type { Repo } from "./store/repo.js";
 
 export interface Patch {
@@ -18,6 +19,7 @@ export class ContractService {
     private repo: Repo,
     private extractor: DocumentExtractor,
     private integ: Integrations,
+    private docs: DocumentStore,
   ) {}
 
   private async load(id: string): Promise<Contract> {
@@ -50,10 +52,25 @@ export class ContractService {
     return this.load(id);
   }
 
+  /** Records that the data-processing notice was shown and accepted. Required before any personal data is entered. */
+  async recordConsent(id: string, noticeVersion: string, actor: string): Promise<Contract> {
+    const c = await this.load(id);
+    assertStatus(c, ["draft", "verified"], "record consent");
+    c.consent = { at: new Date().toISOString(), by: actor, noticeVersion };
+    await this.repo.save(c);
+    await this.repo.audit({ contractId: id, actor, action: "consent.recorded", detail: { noticeVersion } });
+    return c;
+  }
+
+  private requireConsent(c: Contract) {
+    if (!c.consent) throw new WorkflowError("Data-processing consent must be recorded before personal data is entered", 409);
+  }
+
   /** Editing is only allowed before signing. Editing a verified contract sends it back to draft. */
   async patch(id: string, patch: Patch, actor: string): Promise<Contract> {
     const c = await this.load(id);
     assertStatus(c, ["draft", "verified"], "edit");
+    if (patch.landlord || patch.tenant) this.requireConsent(c);
     const changed: string[] = [];
     for (const section of ["landlord", "tenant", "property", "terms"] as Section[]) {
       const incoming = patch[section] as Record<string, unknown> | undefined;
@@ -78,6 +95,7 @@ export class ContractService {
   ): Promise<{ contract: Contract; document: DocumentRecord; applied: string[] }> {
     const c = await this.load(id);
     assertStatus(c, ["draft", "verified"], "add documents");
+    this.requireConsent(c);
     if (a.kind !== "title_deed" && !a.party) throw new WorkflowError("party is required for this document kind", 400);
     const extracted = await this.extractor.extract({ kind: a.kind, filename: a.filename, mimeType: a.mimeType, data: a.data });
     const document: DocumentRecord = {
@@ -90,6 +108,7 @@ export class ContractService {
       extracted,
       uploadedAt: new Date().toISOString(),
     };
+    await this.docs.put(`${id}/${document.id}`, a.data);
     c.documents.push(document);
     const applied = applyExtraction(c, document);
     if (applied.length) this.invalidate(c);
@@ -101,6 +120,16 @@ export class ContractService {
       detail: { kind: a.kind, documentId: document.id, sha256: document.sha256, applied },
     });
     return { contract: c, document, applied };
+  }
+
+  async getDocument(id: string, docId: string, actor: string): Promise<{ record: DocumentRecord; bytes: Buffer }> {
+    const c = await this.load(id);
+    const record = c.documents.find((d) => d.id === docId);
+    if (!record) throw new WorkflowError("Document not found", 404);
+    const bytes = await this.docs.get(`${id}/${docId}`);
+    if (!bytes) throw new WorkflowError("Document content not found", 404);
+    await this.repo.audit({ contractId: id, actor, action: "document.downloaded", detail: { documentId: docId } });
+    return { record, bytes };
   }
 
   /** A person reviews extracted values and confirms them (all, or a list of paths). */

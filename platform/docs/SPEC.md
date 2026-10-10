@@ -71,6 +71,16 @@ Documents contain Emirates ID numbers and property data, which are personal data
 - Host production storage in a UAE region; encrypt documents at rest; retention policy.
 - This public repository must never receive real documents, keys or customer data. See README.
 
+## 6a. Security controls in the pilot code
+
+| Control | What it does | Limit |
+|---|---|---|
+| Consent gate | No documents or landlord/tenant data can be entered until a consent record (who, when, notice version) exists; edits are audited | Records that staff attest consent; the notice wording must come from counsel |
+| Encrypted documents | Originals stored with AES-256-GCM; the storage key is authenticated data so files cannot be swapped between contracts; tampering is detected | Key lives in an environment variable on one host; production needs a UAE-region store and managed keys |
+| Per-user login | Opaque 8-hour sessions (only hashes held), allow-list of staff Emirates IDs, deny by default, the person is the audit actor | Only a mock provider exists; mock must never face the internet |
+| Rate limiting | Per-client limits, tighter on login | In memory, single instance |
+| Signed PDF links | 5-minute HMAC links so the phone can open a PDF without the API token | Anyone holding the link can open it for 5 minutes |
+
 ## 7. Risks
 
 | Risk | Impact | Mitigation |

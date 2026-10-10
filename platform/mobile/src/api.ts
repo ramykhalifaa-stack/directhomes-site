@@ -13,6 +13,7 @@ export interface Contract {
   signatures: Partial<Record<Role, { status: "pending" | "signed" }>>;
   escrow?: { accountRef: string; status: "pending" | "funded" };
   ejari?: { ejariNumber: string };
+  consent?: { at: string; noticeVersion: string };
 }
 
 export interface Readiness {
@@ -40,6 +41,7 @@ export class Api {
   get = (id: string) => this.req<Contract>("GET", `/contracts/${id}`);
   patch = (id: string, p: object) => this.req<Contract>("PATCH", `/contracts/${id}`, p);
   readiness = (id: string) => this.req<Readiness>("GET", `/contracts/${id}/readiness`);
+  recordConsent = (id: string, noticeVersion: string) => this.req<Contract>("POST", `/contracts/${id}/consent`, { noticeVersion });
   confirmAll = (id: string) => this.req<Contract>("POST", `/contracts/${id}/confirm`, { fields: "all" });
   verify = (id: string) => this.req<Contract>("POST", `/contracts/${id}/verify`);
   upload = (id: string, kind: DocKind, party: Role | undefined, mimeType: string, dataBase64: string) =>

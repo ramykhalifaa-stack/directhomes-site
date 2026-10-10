@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { auth, call, makeApp, readyContract, upload } from "./helpers.js";
+import { auth, call, makeApp, newConsentedContract, readyContract, upload } from "./helpers.js";
 
 describe("end-to-end tenancy flow (mock integrations)", () => {
   it("goes from documents to a registered contract", async () => {
@@ -69,7 +69,8 @@ describe("safeguards", () => {
 
   it("keeps extracted values unconfirmed until a person confirms them", async () => {
     const app = makeApp();
-    const { body: c } = await call(app, "POST", "/contracts");
+    const cid = await newConsentedContract(app);
+    const c = { id: cid };
     const up = await upload(app, c.id, "title_deed", "title_deed");
     expect(up.body.applied).toContain("property.titleDeedNumber");
     const r = await call(app, "GET", `/contracts/${c.id}/readiness`);
@@ -130,7 +131,7 @@ describe("safeguards", () => {
 
   it("rejects non-JSON uploads with the mock extractor and malformed bodies", async () => {
     const app = makeApp();
-    const { body: c } = await call(app, "POST", "/contracts");
+    const c = { id: await newConsentedContract(app) };
     const bad = await call(app, "POST", `/contracts/${c.id}/documents`, {
       kind: "title_deed", filename: "x.png", mimeType: "image/png", dataBase64: Buffer.from("not json").toString("base64"),
     });
@@ -141,7 +142,7 @@ describe("safeguards", () => {
 
   it("requires a party for Emirates ID uploads", async () => {
     const app = makeApp();
-    const { body: c } = await call(app, "POST", "/contracts");
+    const c = { id: await newConsentedContract(app) };
     expect((await upload(app, c.id, "emirates_id", "tenant_emirates_id")).status).toBe(400);
   });
 
@@ -159,7 +160,7 @@ describe("signed PDF links", () => {
     expect(ok.statusCode).toBe(200);
     expect(ok.rawPayload.subarray(0, 5).toString()).toBe("%PDF-");
 
-    const tampered = link.url.replace(/sig=[0-9a-f]/, "sig=0");
+    const tampered = link.url.replace(/sig=([0-9a-f])/, (_m: string, ch: string) => `sig=${ch === "0" ? "1" : "0"}`); // always changes the signature
     expect((await app.inject({ method: "GET", url: tampered })).statusCode).toBe(401);
     const otherContract = link.url.replace(c.id, "00000000-0000-0000-0000-000000000000");
     expect((await app.inject({ method: "GET", url: otherContract })).statusCode).toBe(401);
