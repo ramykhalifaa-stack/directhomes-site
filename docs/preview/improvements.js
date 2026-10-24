@@ -18,7 +18,8 @@
    8. Back button: a back arrow at the top left of every page that does not already have one.
    9. Type system: sizes snapped to one scale (Manrope 12/13/14/16/18, Fraunces 13/15/17/20/22/24/26),
       extra-heavy weights evened out, stray serif text fixed; the font families themselves are unchanged.
-  10. Headline: set in Tinos Bold (a Times New Roman lookalike), one weight on all three lines, clean "f".
+  10. Serif: every heading and amount is set in Tinos (a Times New Roman lookalike) instead of Fraunces, whose "f" looks broken
+      (fees, successfully, offer); the home headline is bold on all three lines.
   11. Category chips: All, Apartment, Villa, Townhouse, Studio and Penthouse filter the home list; demo
       listings added so each type has at least two in Buy and in Rent.
   12. Legibility: text under 12px raised to 12px; every text colour is checked against the surface behind it
@@ -69,6 +70,9 @@
       '.dh-back-wrap{position:relative;height:0;z-index:60;overflow:visible}',
       '.dh-back-wrap .dh-back{position:absolute;top:12px;left:14px;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;padding:0;border:0;background:#fff;box-shadow:0 2px 10px rgba(0,15,45,.22);color:var(--navy)}',
       '.mct-v{white-space:nowrap}',
+      ':root{--display:Tinos,"Times New Roman",Times,serif}',
+      '.gold-i{font-style:normal!important}',
+      'h1,h2,h3,.success-ttl{font-synthesis:none;font-variant-ligatures:none}',
       '.mou-dld-card .success-ttl,.mou-dld-card strong{color:#fff!important}',
       '.mou-dld-card .success-msg,.mou-dld-card .dld-success{color:#E3EAF4!important}',
       '.mou-dld-card .btn-primary-full{background:#fff!important;color:var(--navy)!important;font-weight:700}',
@@ -80,7 +84,7 @@
     /* Tinos is a Times New Roman lookalike, so the headline looks the same on every device */
     var fl = document.createElement('link');
     fl.rel = 'stylesheet';
-    fl.href = 'https://fonts.googleapis.com/css2?family=Tinos:wght@700&display=swap';
+    fl.href = 'https://fonts.googleapis.com/css2?family=Tinos:wght@400;700&display=swap';
     document.head.appendChild(fl);
     var st = document.createElement('style');
     st.id = 'dh-preview-style';
@@ -518,10 +522,17 @@
         var s = snapSans(px);
         if (s !== px) e.style.fontSize = s + 'px';
         if (wt >= 800 && !KEEP_HEAVY.test(e.className + '')) e.style.fontWeight = '700';
-      } else if (fam === 'Fraunces') {
+      } else if ((fam === 'Fraunces' || fam === 'Tinos') && !/hero-line/.test(e.className + '')) {
+        /* Fraunces draws an awkward "f" (fees, successfully, offer). The whole serif is now Tinos, a Times New Roman
+           lookalike, so every heading and amount reads cleanly. Tinos has two weights, so 600 and up become bold. */
         var s2 = snapSerif(px);
-        if (s2 !== px) e.style.fontSize = s2 + 'px';
-        if (wt === 700 && !KEEP_HEAVY.test(e.className + '') && !/pill|dot/.test(e.className + '')) e.style.fontWeight = '600';
+        e.style.fontFamily = 'Tinos, "Times New Roman", Times, serif';
+        e.style.fontSize = (s2 + (s2 >= 17 ? 1 : 0)) + 'px';
+        e.style.fontWeight = wt >= 500 ? '700' : '400';
+        e.style.fontStyle = 'normal';
+        e.style.fontSynthesis = 'none';
+        e.style.fontVariantLigatures = 'none';
+        e.style.letterSpacing = '0';
       }
     });
     $$('svg text', root).forEach(function (t) {
