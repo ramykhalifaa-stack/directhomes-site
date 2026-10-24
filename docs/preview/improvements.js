@@ -21,7 +21,8 @@
   10. Headline: set in Tinos Bold (a Times New Roman lookalike), one weight on all three lines, clean "f".
   11. Category chips: All, Apartment, Villa, Townhouse, Studio and Penthouse filter the home list; demo
       listings added so each type has at least two in Buy and in Rent.
-  12. Legibility: text under 12px raised to 12px, gold and light grey text darkened to meet 4.5:1,
+  12. Legibility: text under 12px raised to 12px; every text colour is checked against the surface behind it
+      (navy cards get white or light text, gold on white is darkened) so nothing is blue on blue,
       "In short" cards on the MOU, tenancy and insurance screens.
 
   Not included (needs data, decisions or the website's source): live social proof, saved search alerts,
@@ -68,6 +69,10 @@
       '.dh-back-wrap{position:relative;height:0;z-index:60;overflow:visible}',
       '.dh-back-wrap .dh-back{position:absolute;top:12px;left:14px;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;padding:0;border:0;background:#fff;box-shadow:0 2px 10px rgba(0,15,45,.22);color:var(--navy)}',
       '.mct-v{white-space:nowrap}',
+      '.mou-dld-card .success-ttl,.mou-dld-card strong{color:#fff!important}',
+      '.mou-dld-card .success-msg,.mou-dld-card .dld-success{color:#E3EAF4!important}',
+      '.mou-dld-card .btn-primary-full{background:#fff!important;color:var(--navy)!important;font-weight:700}',
+      '.mou-dld-card .btn-primary-full:active{background:var(--gold-tint)!important}',
       '#page-home .hero-line-1,#page-home .hero-line-2,#page-home .hero-line-3{font-family:Tinos,"Times New Roman",Times,serif;font-weight:700;font-size:29px;letter-spacing:0;line-height:1.14;font-synthesis:none;font-variant-ligatures:none}',
       '#page-home .hero-line-2 .gold{font-style:normal}',
       '#page-home .dh-hero-shift{padding-left:46px!important}'
@@ -185,35 +190,48 @@
   }
 
   /* ---------- 8. legibility ---------- */
-  function darkBg(e) {
-    while (e && e !== document.body) {
+  /* contrast helpers: every text colour is checked against the real surface behind it */
+  function relLum(r, g, b) {
+    var c = [r, g, b].map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+  /* returns [darkest, lightest] luminance of the surface behind e; gradients use all their colour stops */
+  function surface(e) {
+    while (e && e !== document.documentElement) {
       var cs0 = getComputedStyle(e);
-      var c = cs0.backgroundColor;
-      /* hero areas paint their navy with a gradient image, so read the first colour stop */
       var bi = cs0.backgroundImage;
       if (bi && bi.indexOf('gradient') > -1) {
-        var gm = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(bi);
-        if (gm) return ((0.2126 * +gm[1] + 0.7152 * +gm[2] + 0.0722 * +gm[3]) / 255) < 0.45;
+        var re = /rgba?\((\d+),\s*(\d+),\s*(\d+)/g, gm, ls = [];
+        while ((gm = re.exec(bi))) ls.push(relLum(+gm[1], +gm[2], +gm[3]));
+        if (ls.length) return [Math.min.apply(null, ls), Math.max.apply(null, ls)];
       }
-      var m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/.exec(c);
-      if (m && (m[4] === undefined || parseFloat(m[4]) > 0.5)) {
-        var l = (0.2126 * +m[1] + 0.7152 * +m[2] + 0.0722 * +m[3]) / 255;
-        return l < 0.45;
-      }
+      var m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/.exec(cs0.backgroundColor);
+      if (m && (m[4] === undefined || parseFloat(m[4]) > 0.5)) { var l = relLum(+m[1], +m[2], +m[3]); return [l, l]; }
       e = e.parentElement;
     }
-    return false;
+    return [1, 1];
   }
+  function ratio(a, b) { return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); }
   function legibility(root) {
     if (!root) return;
     $$('*', root).forEach(function (e) {
-      if (e.children.length || !squash(e.textContent) || e.closest('svg')) return;
+      if (e.children.length || !squash(e.textContent) || e.closest('svg') || /^(SCRIPT|STYLE)$/.test(e.tagName)) return;
       var cs = getComputedStyle(e);
       var fs = parseFloat(cs.fontSize);
       if (fs < 12 && !e.dataset.dhFs) { e.style.fontSize = '12px'; e.dataset.dhFs = '1'; }
-      if ((cs.color === 'rgb(184, 148, 90)' || cs.color === 'rgb(212, 180, 131)') && !e.dataset.dhGold && !darkBg(e)) {
+      var m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(cs.color);
+      if (!m) return;
+      var tl = relLum(+m[1], +m[2], +m[3]);
+      var sf = surface(e);
+      var gold = +m[1] > +m[3] + 40 && +m[2] > +m[3] + 20;
+      if (sf[1] < 0.3) {
+        /* dark surface (navy cards, hero areas): text must be light */
+        /* text that is already light (white on a green badge, say) is left as designed */
+        if (tl < 0.55 && (ratio(tl, sf[1]) < 4.5 || ratio(tl, sf[0]) < 4.5)) {
+          e.style.color = gold ? '#EBD9B4' : (tl < 0.12 ? '#FFFFFF' : '#E3EAF4');
+        }
+      } else if (sf[0] > 0.45 && gold && ratio(tl, sf[0]) < 4.5) {
         e.style.color = '#7A5C1E';
-        e.dataset.dhGold = '1';
       }
     });
   }
