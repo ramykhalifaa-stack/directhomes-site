@@ -8,7 +8,8 @@
    1. Picker fix: date and time cards highlight when tapped (frozen picker).
    2. Viewing: real upcoming dates, quick time chips, correct selection carried to confirmation.
    3. New "Viewing confirmed" page, built from the existing Ejari confirmation components,
-      with Add to calendar and an Upcoming viewing card on the deal flow.
+      with Add to calendar and an Upcoming viewing card on the deal flow. For a rental it also
+      holds the self-guided viewing block, which the prototype draws itself.
    4. Claims: the escrow bank is shown as Emirates NBD everywhere (CONFIG.bankName),
       two unsourced statistics removed, home trust checklist reduced to one line marked as a preview.
    5. Repetition: home cards keep one badge and one savings line, the lower duplicate deposit box on
@@ -358,12 +359,17 @@
       .forEach(function (def, i, all) {
         var r = rowTpl.cloneNode(true);
         r.children[0].textContent = def[0];
+        r.children[0].id = def[1] + '-l';
         r.children[1].id = def[1];
         if (i === all.length - 1) r.style.borderBottom = 'none';
         card.appendChild(r);
       });
 
-    body.children[2].innerHTML = '<strong>What happens next:</strong> the seller is told which slot you picked. They only see your name and verification status until you choose to share more.';
+    body.children[2].id = 'vc-next';
+    /* rentals: slot for the self-guided viewing block, drawn by the prototype's renderSelfGuided() */
+    var sg = document.createElement('div');
+    sg.id = 'vc-selfguided';
+    card.insertAdjacentElement('afterend', sg);
     host.parentNode.insertBefore(pg, host.nextSibling);
   }
 
@@ -429,6 +435,13 @@
     set('vc-privacy', 'Contact details hidden');
     var cal = document.getElementById('vc-cal');
     if (cal) cal.style.display = viewing.iso ? '' : 'none';
+    /* landlord for a rental, seller for a sale */
+    var isRent = false;
+    try { isRent = !!(STATE.currentProp && STATE.currentProp.mode === 'rent'); } catch (e) {}
+    set('vc-price-l', isRent ? 'Asking rent' : 'Asking price');
+    var next = document.getElementById('vc-next');
+    if (next) next.innerHTML = '<strong>What happens next:</strong> the ' + (isRent ? 'landlord' : 'seller') + ' is told which slot you picked. They only see your name and verification status until you choose to share more.';
+    try { if (typeof renderSelfGuided === 'function') renderSelfGuided(isRent ? viewing : null); } catch (e) {}
     window.goPage('page-viewing-confirmed');
   };
 
