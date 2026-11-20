@@ -10,8 +10,9 @@
    3. New "Viewing confirmed" page, built from the existing Ejari confirmation components,
       with Add to calendar and an Upcoming viewing card on the deal flow. For a rental it also
       holds the self-guided viewing block, which the prototype draws itself.
-   4. Claims: the escrow bank is shown as Emirates NBD everywhere (CONFIG.bankName),
-      two unsourced statistics removed, home trust checklist reduced to one line marked as a preview.
+   4. Claims: two unsourced statistics removed, home trust checklist reduced to one line marked as a
+      preview. The escrow bank is no longer renamed here. The prototype shows it as
+      "Partner bank (to be confirmed)".
    5. Repetition: home cards keep one badge and one savings line, the lower duplicate deposit box on
       property detail is hidden, the offer confirmation escrow tile is collapsed behind a link.
    6. Home order: listings sit directly under the trust line; the insurance banner moves below the list.
@@ -43,8 +44,6 @@
   }
   if (window.__dhPreviewImprovements) return;
   window.__dhPreviewImprovements = true;
-
-  var CONFIG = { bankName: 'Emirates NBD' };
 
   function $(s, r) { return (r || document).querySelector(s); }
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
@@ -103,23 +102,16 @@
   });
 
   /* ---------- 4. claims: wording ---------- */
+  /* Two unsourced statistics are removed wherever they appear. The escrow bank and the insurer are not
+     renamed here any more: the prototype itself now says "Partner bank (to be confirmed)". */
+  var CLAIM = /Most accepted offers|6 UAE banks/;
   function fixText(t) {
-    var o = t;
-    /* the escrow partner is shown as Emirates NBD; a list of accepted banks keeps its own names */
-    if (CONFIG.bankName && !/\b(?:ADCB|ADIB|RAKBANK)\b/.test(t)) {
-      t = t.replace(/\bMashreq(?: Bank)?(?= Escrow\b)/g, CONFIG.bankName)
-           .replace(/\bMashreq(?: Bank)?/g, CONFIG.bankName);
-    }
-    t = t.replace(/\s*Most accepted offers come in between 90% and 100%(?: of asking)?\./g, '')
-         .replace(/\s*We can help you compare offers from 6 UAE banks\./g, '');
-    return t === o ? o : t;
+    return t.replace(/\s*Most accepted offers come in between 90% and 100%(?: of asking)?\./g, '')
+            .replace(/\s*We can help you compare offers from 6 UAE banks\./g, '');
   }
   function sanitizeText(n) {
     var v = n.nodeValue;
-    if (!v || !/Mashreq|Most accepted offers|6 UAE banks/.test(v)) return;
-    /* the mortgage comparison already lists Emirates NBD, so its second bank is shown as CBD Bank */
-    var pe = n.parentElement;
-    if (pe && pe.classList && pe.classList.contains('mc-bank-name') && /Mashreq/.test(v)) { n.nodeValue = 'CBD Bank'; return; }
+    if (!v || !CLAIM.test(v)) return;
     var nv = fixText(v);
     if (nv !== v) n.nodeValue = nv;
   }
@@ -128,7 +120,7 @@
     if (root.nodeType !== 1) return;
     var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
     var n, list = [];
-    while ((n = w.nextNode())) { if (/Mashreq|Most accepted offers|6 UAE banks/.test(n.nodeValue)) list.push(n); }
+    while ((n = w.nextNode())) { if (CLAIM.test(n.nodeValue)) list.push(n); }
     list.forEach(sanitizeText);
   }
 
