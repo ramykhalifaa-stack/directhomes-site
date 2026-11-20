@@ -207,8 +207,9 @@
       var cs0 = getComputedStyle(e);
       var bi = cs0.backgroundImage;
       if (bi && bi.indexOf('gradient') > -1) {
-        var re = /rgba?\((\d+),\s*(\d+),\s*(\d+)/g, gm, ls = [];
-        while ((gm = re.exec(bi))) ls.push(relLum(+gm[1], +gm[2], +gm[3]));
+        /* a nearly transparent colour stop is a tint over the page, not a dark surface: skip it */
+        var re = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/g, gm, ls = [];
+        while ((gm = re.exec(bi))) { if (gm[4] === undefined || parseFloat(gm[4]) > 0.5) ls.push(relLum(+gm[1], +gm[2], +gm[3])); }
         if (ls.length) return [Math.min.apply(null, ls), Math.max.apply(null, ls)];
       }
       var m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/.exec(cs0.backgroundColor);
