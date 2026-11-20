@@ -11,8 +11,15 @@
    5. Self-guided viewing wording on the viewing confirmation.
    6. Rent first: the demo opens in Rent and the Buy switch is hidden (CONFIG.rentOnly).
 
-  Every amount is derived from the security deposit shown on the tenancy screen, using the plan's
-  judgment inputs. Nothing here takes a payment or contacts a partner; it is a preview.
+  The deposit rules, all from the plan (Sections 2.1, 6.1, 6.3, 7 and Appendix A):
+    Deposit        5% of the annual rent for an unfurnished home, 10% for a furnished one.
+    Deposit Pass   18% of that deposit, minimum AED 499, paid once for the year. Not refunded.
+                   Each renewal year costs 60% of the first-year fee. The guarantee equals the deposit.
+    Held Deposit   The whole deposit, paid once into escrow. No fee, nothing recurring. Returned at
+                   move-out less make-good and damage.
+    Make-good      Expected at 25% of the deposit (the plan's model input).
+  The deposit on the tenancy screen is recalculated with this formula. Nothing here takes a payment or
+  contacts a partner; it is a preview.
 */
 (function () {
   'use strict';
@@ -21,12 +28,14 @@
 
   var CONFIG = {
     rentOnly: true,
+    depositRate: 0.05,     /* deposit: 5% of annual rent, unfurnished (plan, Section 2.1) */
+    depositRateFurnished: 0.10, /* 10% of annual rent, furnished */
     passRate: 0.18,        /* Deposit Pass fee: 18% of the deposit it replaces (plan, Section 7; judgment) */
     passMin: 499,          /* minimum fee, AED */
     renewalRate: 0.6,      /* renewal costs 60% of the first-year fee */
     makeGoodRate: 0.25,    /* expected make-good: 25% of the deposit (plan, Appendix A; judgment) */
     penalty: 200,          /* seven-day promise penalty, AED */
-    fallbackDeposit: 5500
+    fallbackRent: 110000
   };
 
   function $(s, r) { return (r || document).querySelector(s); }
@@ -40,22 +49,69 @@
     return $$('*', root).filter(function (e) { return e.children.length === 0 && squash(e.textContent) === txt; })[0] || null;
   }
 
-  var S = { choice: null, rooms: {}, confirmed: false };
+  var S = { choice: null, rooms: {}, confirmed: false, listing: null };
 
   /* ---------- amounts ---------- */
-  function deposit() {
-    var ten = document.getElementById('page-tenancy');
-    var lab = ten && leafByText(ten, 'Security deposit');
-    var row = lab && lab.parentElement && lab.parentElement.parentElement;
-    var v = row && $$('*', row).filter(function (e) { return e.children.length === 0 && /^AED\s[\d,]+$/.test(squash(e.textContent)); })[0];
-    var n = v ? parseInt(squash(v.textContent).replace(/[^\d]/g, ''), 10) : 0;
-    return n > 0 ? n : CONFIG.fallbackDeposit;
+  function num(t) { var n = parseInt(String(t || '').replace(/[^\d]/g, ''), 10); return n > 0 ? n : 0; }
+  function listings() { try { return (typeof LISTINGS !== 'undefined' && Array.isArray(LISTINGS)) ? LISTINGS : []; } catch (e) { return []; } }
+  /* the home the user last opened: matched by its title on the detail screen */
+  function noteListing() {
+    var h = $('#detail-body h1');
+    var t = h && squash(h.textContent);
+    if (!t) return;
+    var l = listings().filter(function (x) { return x.title === t && x.mode !== 'buy'; })[0];
+    if (l) S.listing = { title: l.title, rent: l.priceN || num(l.price), furnished: (l.badges || []).some(function (b) { return /^furnished$/i.test(squash(b)); }) };
   }
-  function figures() {
-    var d = deposit();
-    var fee = Math.max(CONFIG.passMin, Math.round(d * CONFIG.passRate));
-    var mg = Math.round(d * CONFIG.makeGoodRate / 5) * 5;
-    return { dep: d, fee: fee, renewal: Math.round(fee * CONFIG.renewalRate), mg: mg, back: d - mg };
+  /* a labelled AED value on the tenancy screen, e.g. the row "Annual rent" */
+  function tenancyValue(re) {
+    var ten = document.getElementById('page-tenancy');
+    if (!ten) return null;
+    var lab = $$('*', ten).filter(function (e) { return e.children.length === 0 && re.test(squash(e.textContent)); })[0];
+    var row = lab && lab.parentElement && lab.parentElement.parentElement;
+    return row ? $$('*', row).filter(function (e) { return e.children.length === 0 && /^AED\s[\d,]+(\s*\/\s*(yr|year))?$/i.test(squash(e.textContent)); })[0] || null : null;
+  }
+  function terms() {
+    /* the rent agreed on the tenancy wins over the asking rent, because an offer may have changed it */
+    var agreed = num((tenancyValue(/^(annual|yearly) rent$|^rent$|^rent per year$/i) || {}).textContent);
+    var rent = agreed || (S.listing && S.listing.rent) || 0;
+    var furnished = !!(S.listing && S.listing.furnished);
+    if (!rent) {
+      /* last resort: work back from the deposit the screen first showed, read as 5% of the rent */
+      var dv = tenancyValue(/^security deposit$/i);
+      var shown = dv ? num(dv.dataset.dhpOrig !== undefined ? dv.dataset.dhpOrig : dv.textContent) : 0;
+      rent = shown ? Math.round(shown / CONFIG.depositRate) : CONFIG.fallbackRent;
+    }
+    return { rent: rent, furnished: furnished };
+  }
+  function calc(rent, furnished) {
+    var rate = furnished ? CONFIG.depositRateFurnished : CONFIG.depositRate;
+    var d = Math.round(rent * rate);
+    var feeExact = Math.max(CONFIG.passMin, d * CONFIG.passRate);
+    var mg = Math.round(d * CONFIG.makeGoodRate);
+    var fee = Math.round(feeExact), renewal = Math.round(feeExact * CONFIG.renewalRate);
+    return { rent: rent, furnished: furnished, rate: rate, dep: d, fee: fee, renewal: renewal, twoYears: fee + renewal,
+      minApplied: d * CONFIG.passRate < CONFIG.passMin, mg: mg, back: d - mg };
+  }
+  function figures() { var t = terms(); return calc(t.rent, t.furnished); }
+  function basis(f) { return (f.rate * 100) + '% of the ' + aed(f.rent) + ' annual rent, ' + (f.furnished ? 'furnished' : 'unfurnished') + ' home'; }
+
+  /* the tenancy screen shows the deposit the plan's formula gives, with the formula under it */
+  function tenancyDeposit() {
+    var v = tenancyValue(/^security deposit$/i);
+    if (!v) return;
+    if (v.dataset.dhpOrig === undefined) v.dataset.dhpOrig = v.textContent;
+    var f = figures();
+    if (squash(v.textContent) !== aed(f.dep)) v.textContent = aed(f.dep);
+    var row = v.parentElement, host = row && row.parentElement;
+    if (!host) return;
+    var note = $('.dhp-basis', host);
+    if (!note) {
+      note = document.createElement('div');
+      note.className = 'dhp-basis';
+      note.style.cssText = 'font-size:12px;color:var(--muted,#5b6676);margin:2px 0 6px';
+      host.insertBefore(note, row.nextSibling);
+    }
+    if (note) note.textContent = 'Deposit: ' + basis(f) + '.';
   }
 
   /* ---------- styles ---------- */
@@ -100,6 +156,13 @@
       '.dhp-room small{display:block;color:var(--muted,#5b6676);font-size:12px}',
       '.dhp-room button{border:1.5px solid var(--navy,#143969);background:transparent;color:var(--navy,#143969);border-radius:999px;padding:7px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}',
       '.dhp-room .dhp-done{color:#0B7A55;font-weight:700;font-size:13px;white-space:nowrap}',
+      '.dhp-tblwrap{overflow-x:auto;margin:0 0 14px}',
+      '.dhp-tbl{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;background:var(--card,#fff);border:1px solid var(--line,#dfe4ec);border-radius:12px}',
+      '.dhp-tbl th,.dhp-tbl td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line,#dfe4ec);vertical-align:top}',
+      '.dhp-tbl tr:last-child td{border-bottom:0}',
+      '.dhp-tbl th{font-size:12px;color:var(--muted,#5b6676);font-weight:700}',
+      '.dhp-tbl td:first-child{color:var(--muted,#5b6676)}',
+      '.dhp-tbl td+td{font-weight:700;color:var(--navy,#143969)}',
       '.dhp-h{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line,#dfe4ec);background:var(--card,#fff)}',
       '.dhp-h h1{font-family:var(--display,Tinos,"Times New Roman",serif);font-size:18px;margin:0;color:var(--navy,#143969)}',
       '.dhp-scroll{overflow-y:auto;flex:1}'
@@ -168,23 +231,32 @@
     var f = figures();
     el.innerHTML =
       '<h2>The landlord never holds your deposit</h2>' +
-      '<p>Today a tenant hands the landlord a cheque for ' + aed(f.dep) + ', with no rules on when it comes back. Here you choose one of two ways, and both follow written rules.</p>' +
+      '<p>The deposit on this home is ' + aed(f.dep) + ': ' + basis(f) + '. Today that is a cheque to the landlord, with no rules on when it comes back. Here you choose one of two ways, and both follow written rules.</p>' +
       '<div class="dhp-opt dhp-lead"><span class="dhp-tag">No cash deposit</span>' +
         '<div class="dhp-name">Deposit Pass</div>' +
         '<div class="dhp-big">' + aed(f.fee) + ' <small>for the year, instead of ' + aed(f.dep) + ' in cash</small></div>' +
         '<ul><li>You keep ' + aed(f.dep) + ' in your account on moving day.</li>' +
         '<li>The landlord receives a guarantee for ' + aed(f.dep) + ', backed by a licensed insurer.</li>' +
-        '<li>The fee is not refunded. Make-good and any damage are still owed when you move out.</li>' +
-        '<li>Renewal costs ' + aed(f.renewal) + ' a year.</li></ul>' +
+        '<li>The fee is 18% of the deposit' + (f.minApplied ? ', with a minimum of ' + aed(CONFIG.passMin) : '') + '. It is paid once for the year and is not refunded.</li>' +
+        '<li>Each renewal year costs ' + aed(f.renewal) + ', which is 60% of the first-year fee.</li>' +
+        '<li>Make-good and any damage are still owed when you move out.</li></ul>' +
         '<div data-slot="pass"></div></div>' +
       '<div class="dhp-opt"><span class="dhp-tag">No fee</span>' +
         '<div class="dhp-name">Held Deposit</div>' +
         '<div class="dhp-big">' + aed(f.dep) + ' <small>into escrow, returned when you move out</small></div>' +
-        '<ul><li>A bank or licensed trustee holds it. Neither you nor the landlord can move it.</li>' +
+        '<ul><li>Paid once. There is no fee and nothing to pay at renewal.</li>' +
+        '<li>A bank or licensed trustee holds it. Neither you nor the landlord can move it.</li>' +
         '<li>It is released by the move-in record and the make-good schedule.</li>' +
         '<li>The landlord\'s share is paid within 7 days. Your balance returns the same day.</li></ul>' +
         '<div data-slot="held"></div></div>' +
-      '<div class="dhp-note"><b>Make-good.</b> ' + MAKEGOOD + ' The amount is agreed at signing, so it is known at the start under both options.</div>' +
+      '<h2 style="font-size:18px;margin-top:4px">What you pay, and when</h2>' +
+      '<div class="dhp-tblwrap"><table class="dhp-tbl"><tr><th></th><th>Deposit Pass</th><th>Held Deposit</th></tr>' +
+        '<tr><td>Today</td><td>' + aed(f.fee) + '</td><td>' + aed(f.dep) + '</td></tr>' +
+        '<tr><td>Each renewal year</td><td>' + aed(f.renewal) + '</td><td>AED 0</td></tr>' +
+        '<tr><td>Fees over two years</td><td>' + aed(f.twoYears) + '</td><td>AED 0</td></tr>' +
+        '<tr><td>At move-out</td><td>You pay make-good, about ' + aed(f.mg) + '</td><td>You get back about ' + aed(f.back) + '</td></tr>' +
+      '</table></div>' +
+      '<div class="dhp-note"><b>Make-good.</b> ' + MAKEGOOD + ' The amount is agreed at signing, so it is known at the start under both options. The figure here is 25% of the deposit, and any damage is charged on top.</div>' +
       PREVIEW;
     $('[data-slot="pass"]', el).appendChild(btn('Choose Deposit Pass', function () { S.choice = 'pass'; renderConfirm(); go('page-dhp-confirm'); }));
     $('[data-slot="held"]', el).appendChild(btn('Choose Held Deposit', function () {
@@ -205,7 +277,8 @@
         '<li><b>Make-good and any damage are still owed when you move out.</b> ' + MAKEGOOD + '</li>' +
         '<li><b>Expected make-good for this home after 12 months: about ' + aed(f.mg) + '.</b> It follows a published schedule and falls the longer you stay.</li>' +
       '</ol>' +
-      rows([['Pay today', aed(f.fee)], ['Cash deposit', 'AED 0'], ['Guarantee to the landlord', aed(f.dep)], ['Expected at move-out', 'about ' + aed(f.mg)]]) +
+      rows([['Pay today, for year 1', aed(f.fee)], ['Each renewal year', aed(f.renewal)], ['Cash deposit', 'AED 0'], ['Guarantee to the landlord', aed(f.dep)], ['Expected at move-out', 'about ' + aed(f.mg)]]) +
+      '<p class="dhp-muted">The fee is 18% of the ' + aed(f.dep) + ' deposit' + (f.minApplied ? ', raised to the ' + aed(CONFIG.passMin) + ' minimum' : '') + '. The deposit is ' + basis(f) + '.</p>' +
       '<label class="dhp-check"><input type="checkbox" id="dhp-agree"><span>I have read and understood these three points.</span></label>' +
       '<div data-slot="pay"></div>' + PREVIEW;
     var pay = btn('Confirm and pay ' + aed(f.fee), function () {
@@ -230,7 +303,7 @@
       '<h2>Deposit Pass active</h2>' +
       '<p>No cash deposit paid. The landlord is guaranteed for ' + aed(f.dep) + '.</p>' +
       '<div class="dhp-ref">DH-PASS-2026-1402</div></div>' +
-      rows([['Guarantee amount', aed(f.dep)], ['Fee paid', aed(f.fee)], ['Term', '12 months, fixed for the full term'],
+      rows([['Guarantee amount', aed(f.dep)], ['Fee paid for year 1', aed(f.fee)], ['Renewal, each further year', aed(f.renewal)], ['Term', '12 months, fixed for the full term'],
         ['Linked to', 'Ejari number, added at registration'], ['Valid claims', 'Paid within 7 days']]) +
       '<div class="dhp-note"><b>Seven-day promise.</b> A valid claim is paid to the landlord within 7 days, or the landlord receives ' + aed(CONFIG.penalty) + '.</div>' +
       '<div data-slot="next"></div>';
@@ -324,7 +397,6 @@
     var sec = document.getElementById('ten-ejari-section');
     if (!sec) return;
     var c = $('.dh-rentdep', sec);
-    if (c && c.dataset.dhp) return;
     if (!c) {
       c = document.createElement('div');
       c.className = 'info-card dh-rentdep';
@@ -336,7 +408,7 @@
     var f = figures();
     c.innerHTML = '<div class="lbl-tiny">NEXT STEP BEFORE EJARI</div>' +
       '<div style="font-weight:700;color:var(--navy,#143969);font-size:15px;margin-top:6px">Choose how your deposit is handled</div>' +
-      '<div style="color:var(--muted,#5b6676);font-size:13px;line-height:1.5;margin:4px 0 12px">Replace the ' + aed(f.dep) + ' deposit with a Deposit Pass for ' + aed(f.fee) + ' a year, or place it in escrow at no charge. The landlord never holds it.</div>';
+      '<div style="color:var(--muted,#5b6676);font-size:13px;line-height:1.5;margin:4px 0 12px">Replace the ' + aed(f.dep) + ' deposit with a Deposit Pass for ' + aed(f.fee) + ' in the first year and ' + aed(f.renewal) + ' each year after, or place it in escrow once at no charge. The landlord never holds it.</div>';
     c.appendChild(btn('See the two options', function () { renderChoice(); go('page-dhp-choice'); }));
   }
 
@@ -407,6 +479,8 @@
 
   /* ---------- wiring ---------- */
   function onPage(id) {
+    safe(noteListing);
+    safe(tenancyDeposit);
     safe(entryCard);
     safe(rentFirst);
     if (id === 'page-viewing-confirmed') safe(selfGuided);
@@ -424,7 +498,7 @@
   });
   window.dhPlanFlow = {
     open: function (id) { renderChoice(); renderConfirm(); renderActive(); renderRecord(); renderMoveOut(); go(id || 'page-dhp-choice'); },
-    state: S, config: CONFIG, figures: figures
+    state: S, config: CONFIG, figures: figures, calc: calc
   };
   safe(function () { onPage(($('.page.active') || {}).id); });
 })();
