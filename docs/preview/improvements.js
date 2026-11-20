@@ -132,7 +132,7 @@
       s.dataset.dh = '1';
       s.classList.add('dh-one-line');
       var t = $('.ts-claim-text', s);
-      if (t) t.textContent = 'Verified owners, government record checks and bank-held deposits';
+      if (t) t.textContent = 'Verified owners. Government record checks. No deposit cheque.';
       var foot = $('.ts-claim-foot', s);
       if (foot) foot.textContent = 'Preview: integrations are planned. Learn more ›';
     }
