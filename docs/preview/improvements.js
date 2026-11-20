@@ -8,9 +8,11 @@
    1. Picker fix: date and time cards highlight when tapped (frozen picker).
    2. Viewing: real upcoming dates, quick time chips, correct selection carried to confirmation.
    3. New "Viewing confirmed" page, built from the existing Ejari confirmation components,
-      with Add to calendar and an Upcoming viewing card on the deal flow.
-   4. Claims: the escrow bank is shown as Emirates NBD everywhere (CONFIG.bankName),
-      two unsourced statistics removed, home trust checklist reduced to one line marked as a preview.
+      with Add to calendar and an Upcoming viewing card on the deal flow. For a rental it also
+      holds the self-guided viewing block, which the prototype draws itself.
+   4. Claims: two unsourced statistics removed, home trust checklist reduced to one line marked as a
+      preview. The escrow bank is no longer renamed here. The prototype shows it as
+      "Partner bank (to be confirmed)".
    5. Repetition: home cards keep one badge and one savings line, the lower duplicate deposit box on
       property detail is hidden, the offer confirmation escrow tile is collapsed behind a link.
    6. Home order: listings sit directly under the trust line; the insurance banner moves below the list.
@@ -26,18 +28,22 @@
       (navy cards get white or light text, gold on white is darkened) so nothing is blue on blue,
       "In short" cards on the MOU, tenancy and insurance screens.
 
-  13. Rent deposit: after both parties sign the tenancy, a "Fund your security deposit" step sends the tenant
-      through the same Aman funding and confirmation screens as a sale, then on to Ejari booking.
+  13. Rent deposit: now built into the prototype itself (Deposit Pass or Held Deposit), so the earlier
+      patch for it has been removed from this file.
 
   Not included (needs data, decisions or the website's source): live social proof, saved search alerts,
   analytics and the "how sure do you feel" question, the claims audit sign-off, all website changes.
 */
-(function () {
+(function dhBoot() {
   'use strict';
+  /* The prototype's own script can still be parsing when this file arrives (it waits on web fonts).
+     Wait for it, otherwise the wrappers below attach to functions that do not exist yet. */
+  if (typeof goPage !== 'function' || typeof LISTINGS === 'undefined' || !document.getElementById('page-ejari-success')) {
+    setTimeout(dhBoot, 60);
+    return;
+  }
   if (window.__dhPreviewImprovements) return;
   window.__dhPreviewImprovements = true;
-
-  var CONFIG = { bankName: 'Emirates NBD' };
 
   function $(s, r) { return (r || document).querySelector(s); }
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
@@ -96,24 +102,16 @@
   });
 
   /* ---------- 4. claims: wording ---------- */
+  /* Two unsourced statistics are removed wherever they appear. The escrow bank and the insurer are not
+     renamed here any more: the prototype itself now says "Partner bank (to be confirmed)". */
+  var CLAIM = /Most accepted offers|6 UAE banks/;
   function fixText(t) {
-    var o = t;
-    /* the escrow partner is shown as Emirates NBD; a list of accepted banks keeps its own names */
-    if (CONFIG.bankName && !/\b(?:ADCB|ADIB|RAKBANK)\b/.test(t)) {
-      t = t.replace(/\bMashreq(?: Bank)?(?= Escrow\b)/g, CONFIG.bankName)
-           .replace(/\bMashreq(?: Bank)?/g, CONFIG.bankName);
-    }
-    if (CONFIG.bankName) t = t.replace(/\b[Pp]artner bank\b/g, CONFIG.bankName);
-    t = t.replace(/\s*Most accepted offers come in between 90% and 100%(?: of asking)?\./g, '')
-         .replace(/\s*We can help you compare offers from 6 UAE banks\./g, '');
-    return t === o ? o : t;
+    return t.replace(/\s*Most accepted offers come in between 90% and 100%(?: of asking)?\./g, '')
+            .replace(/\s*We can help you compare offers from 6 UAE banks\./g, '');
   }
   function sanitizeText(n) {
     var v = n.nodeValue;
-    if (!v || !/Mashreq|Most accepted offers|6 UAE banks|[Pp]artner bank/.test(v)) return;
-    /* the mortgage comparison already lists Emirates NBD, so its second bank is shown as CBD Bank */
-    var pe = n.parentElement;
-    if (pe && pe.classList && pe.classList.contains('mc-bank-name') && /Mashreq/.test(v)) { n.nodeValue = 'CBD Bank'; return; }
+    if (!v || !CLAIM.test(v)) return;
     var nv = fixText(v);
     if (nv !== v) n.nodeValue = nv;
   }
@@ -122,7 +120,7 @@
     if (root.nodeType !== 1) return;
     var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
     var n, list = [];
-    while ((n = w.nextNode())) { if (/Mashreq|Most accepted offers|6 UAE banks|[Pp]artner bank/.test(n.nodeValue)) list.push(n); }
+    while ((n = w.nextNode())) { if (CLAIM.test(n.nodeValue)) list.push(n); }
     list.forEach(sanitizeText);
   }
 
@@ -134,7 +132,7 @@
       s.dataset.dh = '1';
       s.classList.add('dh-one-line');
       var t = $('.ts-claim-text', s);
-      if (t) t.textContent = 'Verified owners, government record checks and bank-held deposits';
+      if (t) t.textContent = 'Verified owners. Government record checks. No deposit cheque.';
       var foot = $('.ts-claim-foot', s);
       if (foot) foot.textContent = 'Preview: integrations are planned. Learn more ›';
     }
@@ -353,12 +351,17 @@
       .forEach(function (def, i, all) {
         var r = rowTpl.cloneNode(true);
         r.children[0].textContent = def[0];
+        r.children[0].id = def[1] + '-l';
         r.children[1].id = def[1];
         if (i === all.length - 1) r.style.borderBottom = 'none';
         card.appendChild(r);
       });
 
-    body.children[2].innerHTML = '<strong>What happens next:</strong> the seller is told which slot you picked. They only see your name and verification status until you choose to share more.';
+    body.children[2].id = 'vc-next';
+    /* rentals: slot for the self-guided viewing block, drawn by the prototype's renderSelfGuided() */
+    var sg = document.createElement('div');
+    sg.id = 'vc-selfguided';
+    card.insertAdjacentElement('afterend', sg);
     host.parentNode.insertBefore(pg, host.nextSibling);
   }
 
@@ -424,6 +427,13 @@
     set('vc-privacy', 'Contact details hidden');
     var cal = document.getElementById('vc-cal');
     if (cal) cal.style.display = viewing.iso ? '' : 'none';
+    /* landlord for a rental, seller for a sale */
+    var isRent = false;
+    try { isRent = !!(STATE.currentProp && STATE.currentProp.mode === 'rent'); } catch (e) {}
+    set('vc-price-l', isRent ? 'Asking rent' : 'Asking price');
+    var next = document.getElementById('vc-next');
+    if (next) next.innerHTML = '<strong>What happens next:</strong> the ' + (isRent ? 'landlord' : 'seller') + ' is told which slot you picked. They only see your name and verification status until you choose to share more.';
+    try { if (typeof renderSelfGuided === 'function') renderSelfGuided(isRent ? viewing : null); } catch (e) {}
     window.goPage('page-viewing-confirmed');
   };
 
@@ -596,13 +606,13 @@
       if (homeSub) homeSub.dataset.dhOrig = homeSub.textContent;
     }
     if (!homeSub) return;
-    var mode = (window.STATE && STATE.mode === 'rent') ? 'for rent' : 'for sale';
+    var mode = (typeof STATE !== 'undefined' && STATE.mode === 'rent') ? 'for rent' : 'for sale';
     homeSub.textContent = homeType === 'all' ? homeSub.dataset.dhOrig : n + ' ' + (n === 1 ? TYPE_LABEL[homeType].slice(0, -1) : TYPE_LABEL[homeType]) + ' ' + mode;
   }
 
   function applyTypeFilter() {
     var host = document.getElementById('home-list');
-    if (!host || typeof LISTINGS === 'undefined' || typeof listingCardHTML !== 'function' || !window.STATE) return;
+    if (!host || typeof LISTINGS === 'undefined' || typeof listingCardHTML !== 'function' || typeof STATE === 'undefined') return;
     if (homeType !== 'all') {
       var items = LISTINGS.filter(function (l) { return l.mode === STATE.mode && TYPE[l.id] === homeType; });
       host.innerHTML = items.map(listingCardHTML).join('');
@@ -633,111 +643,12 @@
   });
 
 
-  /* ---------- 13. rent: security deposit step (same Aman flow as a sale) ---------- */
-  var rentDep = false;
-  function leafByText(root, txt) {
-    return $$('*', root).filter(function (e) { return e.children.length === 0 && squash(e.textContent) === txt; })[0] || null;
-  }
-  function rentAmount() {
-    var ten = document.getElementById('page-tenancy');
-    var lab = ten && leafByText(ten, 'Security deposit');
-    var row = lab && lab.parentElement && lab.parentElement.parentElement;
-    var v = row && $$('*', row).filter(function (e) { return e.children.length === 0 && /^AED\s[\d,]+$/.test(squash(e.textContent)); })[0];
-    return v ? squash(v.textContent) : 'AED 5,500';
-  }
-  function setT(el, txt) {
-    if (!el) return;
-    if (el.dataset.dhOrigT === undefined) el.dataset.dhOrigT = el.textContent;
-    el.textContent = txt;
-  }
-  function revertT(root) {
-    $$('[data-dh-orig-t]', root).forEach(function (e) { e.textContent = e.dataset.dhOrigT; delete e.dataset.dhOrigT; });
-  }
-  window.dhFundRent = function () { rentDep = true; window.goPage('page-fund-deposit'); };
-
-  function rentCard() {
-    var sec = document.getElementById('ten-ejari-section');
-    if (!sec || sec.dataset.dhRent) return;
-    sec.dataset.dhRent = '1';
-    var c = document.createElement('div');
-    c.className = 'info-card dh-rentdep';
-    c.style.margin = '0 0 14px';
-    c.innerHTML = '<div class="lbl-tiny">NEXT STEP BEFORE EJARI</div>' +
-      '<div style="font-weight:700;color:var(--navy);font-size:15px;margin-top:6px">Fund your security deposit</div>' +
-      '<div class="dh-rd-text" style="color:var(--muted);font-size:13px;line-height:1.5;margin-top:4px"></div>' +
-      '<button type="button" class="btn btn-primary btn-block" style="margin-top:12px" onclick="dhFundRent()">Fund security deposit</button>';
-    $('.dh-rd-text', c).textContent = rentAmount() + ' goes into Aman at ' + CONFIG.bankName + ', held in your name and returned at the end of your lease.';
-    sec.insertBefore(c, sec.firstChild);
-  }
-
-  function rentFund() {
-    var pg = document.getElementById('page-fund-deposit');
-    if (!pg) return;
-    if (!rentDep) { revertT(pg); var tl0 = document.getElementById('fund-timeline-slot'); if (tl0) tl0.style.display = ''; return; }
-    var amt = rentAmount();
-    setT(leafByText(pg, 'Fund your deposit') || $('h1', pg), 'Fund your security deposit');
-    setT(document.getElementById('fund-total'), amt);
-    setT(document.getElementById('fund-breakdown'), 'Your ' + amt + ' security deposit, held in your name at ' + CONFIG.bankName + ' and returned at the end of your lease');
-    setT(leafByText(pg, 'About your deposit'), 'About your security deposit');
-    setT(document.getElementById('fund-justify-p'), CONFIG.bankName + ' holds your security deposit in your own name for the length of your lease. It is not paid to the landlord up front, and it is returned when the lease ends, less any deductions you both agree.');
-    setT(leafByText(pg, 'DH-AMAN-PJM4127'), 'DH-AMAN-TEN1402');
-    setT(leafByText(pg, '60-day Outside Date'), 'Held for the lease');
-    setT(leafByText(pg, 'Mutual cancel or DLD ruling'), 'Not paid to the landlord up front');
-    setT(leafByText(pg, 'Released per MOU'), 'Returned at lease end');
-    setT(leafByText(pg, 'Three release rules, written in'), 'Less any agreed deductions');
-    var tl = document.getElementById('fund-timeline-slot');
-    if (tl) tl.style.display = 'none';
-  }
-
-  function rentConfirmed() {
-    var pg = document.getElementById('page-aman-confirmed');
-    if (!pg) return;
-    var prim = $('.btn-primary', pg);
-    if (!rentDep) {
-      revertT(pg);
-      if (prim && prim.dataset.dhOrigOn !== undefined) { prim.setAttribute('onclick', prim.dataset.dhOrigOn); delete prim.dataset.dhOrigOn; }
-      return;
-    }
-    var amt = rentAmount();
-    setT(leafByText(pg, 'Deposit secured'), 'Security deposit secured');
-    setT($('.calm-status', pg), amt + ' received by ' + CONFIG.bankName + ' Escrow');
-    var ref = $$('[onclick*="copyRef"]', pg)[0];
-    if (ref) { setT(ref.querySelector('span') || ref, 'AMAN-2026-TEN-1402'); ref.setAttribute('onclick', "copyRef('AMAN-2026-TEN-1402', this)"); }
-    setT(leafByText(pg, 'Released on'), 'Returned on');
-    setT(leafByText(pg, 'DLD title transfer'), 'End of your lease');
-    setT(leafByText(pg, 'If deal collapses'), 'If there is a dispute');
-    setT(leafByText(pg, 'Mutual or RERA'), 'Mutual or Rental Disputes Centre');
-    if (prim) {
-      if (prim.dataset.dhOrigOn === undefined) prim.dataset.dhOrigOn = prim.getAttribute('onclick') || '';
-      setT(prim, 'Continue to Ejari booking');
-      prim.setAttribute('onclick', "goPage('page-ejari-booking')");
-    }
-  }
-
-  function rentFlow(id) {
-    if (id !== 'page-fund-deposit' && id !== 'page-aman-confirmed') rentDep = false;
-    rentCard();
-    rentFund();
-    rentConfirmed();
-  }
-  safe(function () {
-    var oc = window.confirmTransfer;
-    if (typeof oc === 'function') {
-      window.confirmTransfer = function () {
-        if (!rentDep) return oc.apply(this, arguments);
-        if (window.showToast) window.showToast('Transfer confirmed', CONFIG.bankName + ' verifying receipt', '✓');
-        window.goPage('page-aman-confirmed');
-      };
-    }
-  });
-
   /* ---------- wiring ---------- */
   function afterRender() {
     homeLayout();
     hideDupAman();
     offerTile();
     shortCards();
-    safe(rentCard);
     legibility($('.page.active') || document.body);
     safe(function () { typography($('.page.active')); });
     scheduleBack();
@@ -750,7 +661,6 @@
       try {
         if (id === 'page-viewing') refreshViewing();
         if (id === 'page-tracker') trackerCard();
-        rentFlow(id);
         afterRender();
       } catch (e) {}
       return r;
@@ -777,4 +687,5 @@
   safe(refreshViewing);
   safe(function () { typography(document.body); });
   safe(afterRender);
+  window.__dhReady = true;
 })();
