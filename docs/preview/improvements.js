@@ -9,7 +9,8 @@
    2. Viewing: real upcoming dates, quick time chips, correct selection carried to confirmation.
    3. New "Viewing confirmed" page, built from the existing Ejari confirmation components,
       with Add to calendar and an Upcoming viewing card on the deal flow.
-   4. Claims: the escrow bank is shown as Emirates NBD everywhere (CONFIG.bankName),
+   4. Claims: no bank or insurer is named, because none is appointed yet. The escrow holder is shown as
+      "the escrow partner" (CONFIG.escrow) and the insurer as "a licensed insurer",
       two unsourced statistics removed, home trust checklist reduced to one line marked as a preview.
    5. Repetition: home cards keep one badge and one savings line, the lower duplicate deposit box on
       property detail is hidden, the offer confirmation escrow tile is collapsed behind a link.
@@ -37,7 +38,8 @@
   if (window.__dhPreviewImprovements) return;
   window.__dhPreviewImprovements = true;
 
-  var CONFIG = { bankName: 'Emirates NBD' };
+  var CONFIG = { escrow: 'the escrow partner', Escrow: 'The escrow partner', insurer: 'a licensed insurer' };
+  var NAMED = /Mashreq|Sukoon|Most accepted offers|6 UAE banks/;
 
   function $(s, r) { return (r || document).querySelector(s); }
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
@@ -98,19 +100,21 @@
   /* ---------- 4. claims: wording ---------- */
   function fixText(t) {
     var o = t;
-    /* the escrow partner is shown as Emirates NBD; a list of accepted banks keeps its own names */
-    if (CONFIG.bankName && !/\b(?:ADCB|ADIB|RAKBANK)\b/.test(t)) {
-      t = t.replace(/\bMashreq(?: Bank)?(?= Escrow\b)/g, CONFIG.bankName)
-           .replace(/\bMashreq(?: Bank)?/g, CONFIG.bankName);
+    /* no escrow bank or insurer is appointed yet, so neither is named; a list of accepted banks keeps its own names */
+    if (!/\b(?:ADCB|ADIB|RAKBANK)\b/.test(t)) {
+      t = t.replace(/\bMashreq(?: Bank)? Escrow\b/g, 'partner escrow')
+           .replace(/\bMashreq(?: Bank)?\b/g, function (m, i, all) {
+             return (i === 0 || /[.!?:]\s*$/.test(all.slice(0, i))) ? CONFIG.Escrow : CONFIG.escrow;
+           });
     }
-    if (CONFIG.bankName) t = t.replace(/\b[Pp]artner bank\b/g, CONFIG.bankName);
+    t = t.replace(/\bSukoon(?: Insurance)?\b/g, CONFIG.insurer);
     t = t.replace(/\s*Most accepted offers come in between 90% and 100%(?: of asking)?\./g, '')
          .replace(/\s*We can help you compare offers from 6 UAE banks\./g, '');
     return t === o ? o : t;
   }
   function sanitizeText(n) {
     var v = n.nodeValue;
-    if (!v || !/Mashreq|Most accepted offers|6 UAE banks|[Pp]artner bank/.test(v)) return;
+    if (!v || !NAMED.test(v)) return;
     /* the mortgage comparison already lists Emirates NBD, so its second bank is shown as CBD Bank */
     var pe = n.parentElement;
     if (pe && pe.classList && pe.classList.contains('mc-bank-name') && /Mashreq/.test(v)) { n.nodeValue = 'CBD Bank'; return; }
@@ -122,7 +126,7 @@
     if (root.nodeType !== 1) return;
     var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
     var n, list = [];
-    while ((n = w.nextNode())) { if (/Mashreq|Most accepted offers|6 UAE banks|[Pp]artner bank/.test(n.nodeValue)) list.push(n); }
+    while ((n = w.nextNode())) { if (NAMED.test(n.nodeValue)) list.push(n); }
     list.forEach(sanitizeText);
   }
 
@@ -666,7 +670,7 @@
       '<div style="font-weight:700;color:var(--navy);font-size:15px;margin-top:6px">Fund your security deposit</div>' +
       '<div class="dh-rd-text" style="color:var(--muted);font-size:13px;line-height:1.5;margin-top:4px"></div>' +
       '<button type="button" class="btn btn-primary btn-block" style="margin-top:12px" onclick="dhFundRent()">Fund security deposit</button>';
-    $('.dh-rd-text', c).textContent = rentAmount() + ' goes into Aman at ' + CONFIG.bankName + ', held in your name and returned at the end of your lease.';
+    $('.dh-rd-text', c).textContent = rentAmount() + ' goes into escrow with ' + CONFIG.escrow + ', held in your name and returned at the end of your lease.';
     sec.insertBefore(c, sec.firstChild);
   }
 
@@ -677,9 +681,9 @@
     var amt = rentAmount();
     setT(leafByText(pg, 'Fund your deposit') || $('h1', pg), 'Fund your security deposit');
     setT(document.getElementById('fund-total'), amt);
-    setT(document.getElementById('fund-breakdown'), 'Your ' + amt + ' security deposit, held in your name at ' + CONFIG.bankName + ' and returned at the end of your lease');
+    setT(document.getElementById('fund-breakdown'), 'Your ' + amt + ' security deposit, held in your name by ' + CONFIG.escrow + ' and returned at the end of your lease');
     setT(leafByText(pg, 'About your deposit'), 'About your security deposit');
-    setT(document.getElementById('fund-justify-p'), CONFIG.bankName + ' holds your security deposit in your own name for the length of your lease. It is not paid to the landlord up front, and it is returned when the lease ends, less any deductions you both agree.');
+    setT(document.getElementById('fund-justify-p'), CONFIG.Escrow + ' holds your security deposit in your own name for the length of your lease. It is not paid to the landlord up front, and it is returned when the lease ends, less any deductions you both agree.');
     setT(leafByText(pg, 'DH-AMAN-PJM4127'), 'DH-AMAN-TEN1402');
     setT(leafByText(pg, '60-day Outside Date'), 'Held for the lease');
     setT(leafByText(pg, 'Mutual cancel or DLD ruling'), 'Not paid to the landlord up front');
@@ -700,7 +704,7 @@
     }
     var amt = rentAmount();
     setT(leafByText(pg, 'Deposit secured'), 'Security deposit secured');
-    setT($('.calm-status', pg), amt + ' received by ' + CONFIG.bankName + ' Escrow');
+    setT($('.calm-status', pg), amt + ' received by ' + CONFIG.escrow);
     var ref = $$('[onclick*="copyRef"]', pg)[0];
     if (ref) { setT(ref.querySelector('span') || ref, 'AMAN-2026-TEN-1402'); ref.setAttribute('onclick', "copyRef('AMAN-2026-TEN-1402', this)"); }
     setT(leafByText(pg, 'Released on'), 'Returned on');
@@ -725,7 +729,7 @@
     if (typeof oc === 'function') {
       window.confirmTransfer = function () {
         if (!rentDep) return oc.apply(this, arguments);
-        if (window.showToast) window.showToast('Transfer confirmed', CONFIG.bankName + ' verifying receipt', '✓');
+        if (window.showToast) window.showToast('Transfer confirmed', CONFIG.Escrow + ' is verifying receipt', '✓');
         window.goPage('page-aman-confirmed');
       };
     }
